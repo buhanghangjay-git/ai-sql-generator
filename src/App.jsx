@@ -797,25 +797,10 @@ function App() {
         <section>
           <h2>2. Ask About the Data</h2>
 
-          <div className="suggestions-section">
-            <p className="suggestions-title">
-              Not sure what to ask? Try one:
-            </p>
-
-            <div className="suggestions-list">
-              {suggestions.map((suggestion) => (
-                <button
-                  key={suggestion}
-                  className="suggestion-button"
-                  onClick={() =>
-                    useSuggestion(suggestion)
-                  }
-                >
-                  {suggestion}
-                </button>
-              ))}
-            </div>
-          </div>
+          <Suggestions
+            suggestions={suggestions}
+            useSuggestion={useSuggestion}
+          />
 
           <label htmlFor="prompt">
             Describe the records you want:
@@ -967,6 +952,5 @@ Show employees with salary above 50000`}
       </main>
     </div>
   );
-}
-
+  
 export default App;
