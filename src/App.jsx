@@ -3,16 +3,16 @@ import * as XLSX from "xlsx";
 import "./App.css";
 
 function App() {
-  // 1. Selected data source
+  // 1. Data source
   const [dataSource, setDataSource] = useState("database");
 
-  // 2. Query states
+  // 2. Query information
   const [prompt, setPrompt] = useState("");
   const [sql, setSql] = useState("");
   const [results, setResults] = useState([]);
   const [history, setHistory] = useState([]);
 
-  // 3. Excel states
+  // 3. Excel and CSV information
   const [workbook, setWorkbook] = useState(null);
   const [sheetNames, setSheetNames] = useState([]);
   const [selectedSheet, setSelectedSheet] = useState("");
@@ -21,11 +21,34 @@ function App() {
   const [uploadedFileName, setUploadedFileName] =
     useState("");
 
-  // 4. Application states
+  // 4. User feedback
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] =
+    useState("");
 
-  // 5. Read one selected Excel sheet
+  // 5. Suggested requests
+  const databaseSuggestions = [
+    "Show all employees",
+    "Show HR employees",
+    "Show IT employees",
+    "Show employee salaries",
+  ];
+
+  const excelSuggestions = [
+    "Show all records",
+    "Show HR employees",
+    "Show IT employees",
+    "Show employees with salary above 50000",
+    "Show employees with salary below 50000",
+  ];
+
+  const suggestions =
+    dataSource === "database"
+      ? databaseSuggestions
+      : excelSuggestions;
+
+  // 6. Read an Excel sheet
   const readSheet = (book, sheetName) => {
     const sheet = book.Sheets[sheetName];
 
@@ -36,6 +59,7 @@ function App() {
     setSelectedSheet(sheetName);
     setExcelRows(rows);
     setResults([]);
+    setSql("");
 
     if (rows.length > 0) {
       setColumns(Object.keys(rows[0]));
@@ -44,15 +68,30 @@ function App() {
     }
   };
 
-  // 6. Handle Excel or CSV upload
+  // 7. Clear uploaded spreadsheet
+  const clearUploadedFile = () => {
+    setWorkbook(null);
+    setSheetNames([]);
+    setSelectedSheet("");
+    setExcelRows([]);
+    setColumns([]);
+    setUploadedFileName("");
+    setResults([]);
+    setSql("");
+    setError("");
+    setSuccessMessage("");
+  };
+
+  // 8. Handle Excel or CSV upload
   const handleFileUpload = (event) => {
-    const file = event.target.files[0];
+    const file = event.target.files?.[0];
 
     if (!file) {
       return;
     }
 
     setError("");
+    setSuccessMessage("");
     setSql("");
     setResults([]);
     setUploadedFileName(file.name);
@@ -69,31 +108,48 @@ function App() {
           type: "array",
         });
 
+        if (book.SheetNames.length === 0) {
+          throw new Error(
+            "The uploaded file has no readable sheets."
+          );
+        }
+
         setWorkbook(book);
         setSheetNames(book.SheetNames);
 
-        if (book.SheetNames.length > 0) {
-          readSheet(book, book.SheetNames[0]);
-        }
+        readSheet(book, book.SheetNames[0]);
+
+        setSuccessMessage(
+          `${file.name} was uploaded successfully.`
+        );
       } catch (uploadError) {
         console.error(uploadError);
 
-        setError(
-          "The spreadsheet could not be read. Please use a valid Excel or CSV file."
-        );
+        setWorkbook(null);
+        setSheetNames([]);
+        setSelectedSheet("");
+        setExcelRows([]);
+        setColumns([]);
+        setUploadedFileName("");
+        setResults([]);
+        setSql("");
 
-        clearUploadedFile();
+        setError(
+          "The spreadsheet could not be read. Please upload a valid Excel or CSV file."
+        );
       }
     };
 
     reader.onerror = () => {
-      setError("The selected file could not be opened.");
+      setError(
+        "The selected file could not be opened."
+      );
     };
 
     reader.readAsArrayBuffer(file);
   };
 
-  // 7. Change the active Excel sheet
+  // 9. Change the active spreadsheet sheet
   const handleSheetChange = (event) => {
     const newSheetName = event.target.value;
 
@@ -102,19 +158,29 @@ function App() {
     }
   };
 
-  // 8. Find a column without depending on exact capitalization
-  const findColumn = (possibleNames) => {
-    return columns.find((column) =>
-      possibleNames.some((name) =>
-        column
-          .toLowerCase()
-          .replaceAll(" ", "")
-          .includes(name.toLowerCase())
-      )
-    );
+  // 10. Normalize text for column matching
+  const normalizeText = (value) => {
+    return String(value)
+      .toLowerCase()
+      .replaceAll(" ", "")
+      .replaceAll("_", "")
+      .replaceAll("-", "");
   };
 
-  // 9. Generate a query for an uploaded spreadsheet
+  // 11. Find a likely spreadsheet column
+  const findColumn = (possibleNames) => {
+    return columns.find((column) => {
+      const normalizedColumn = normalizeText(column);
+
+      return possibleNames.some((name) =>
+        normalizedColumn.includes(
+          normalizeText(name)
+        )
+      );
+    });
+  };
+
+  // 12. Query uploaded spreadsheet data
   const queryExcel = () => {
     if (excelRows.length === 0) {
       throw new Error(
@@ -136,13 +202,17 @@ function App() {
       "income",
       "amount",
       "pay",
+      "compensation",
     ]);
 
     let filteredRows = [...excelRows];
+
     let generatedSQL =
       `SELECT * FROM [${selectedSheet}];`;
 
-    // Find a department value from the uploaded data
+    let filterApplied = false;
+
+    // Department filtering
     if (departmentColumn) {
       const availableDepartments = [
         ...new Set(
@@ -156,7 +226,9 @@ function App() {
 
       const matchingDepartment =
         availableDepartments.find((department) =>
-          text.includes(department.toLowerCase())
+          text.includes(
+            department.toLowerCase()
+          )
         );
 
       if (matchingDepartment) {
@@ -172,10 +244,12 @@ function App() {
           `SELECT * FROM [${selectedSheet}] ` +
           `WHERE [${departmentColumn}] = ` +
           `'${matchingDepartment}';`;
+
+        filterApplied = true;
       }
     }
 
-    // Find a number in the user's request
+    // Number detection for salary filtering
     const numberMatch = text.match(
       /(?:₱|php|\$)?\s*(\d+(?:,\d{3})*(?:\.\d+)?)/
     );
@@ -185,6 +259,14 @@ function App() {
         numberMatch[1].replaceAll(",", "")
       );
 
+      const getNumericValue = (value) => {
+        return Number(
+          String(value)
+            .replaceAll(",", "")
+            .replace(/[^\d.-]/g, "")
+        );
+      };
+
       if (
         text.includes("greater") ||
         text.includes("above") ||
@@ -193,12 +275,16 @@ function App() {
       ) {
         filteredRows = filteredRows.filter(
           (row) =>
-            Number(row[salaryColumn]) > amount
+            getNumericValue(
+              row[salaryColumn]
+            ) > amount
         );
 
         generatedSQL =
           `SELECT * FROM [${selectedSheet}] ` +
           `WHERE [${salaryColumn}] > ${amount};`;
+
+        filterApplied = true;
       } else if (
         text.includes("less") ||
         text.includes("below") ||
@@ -206,16 +292,20 @@ function App() {
       ) {
         filteredRows = filteredRows.filter(
           (row) =>
-            Number(row[salaryColumn]) < amount
+            getNumericValue(
+              row[salaryColumn]
+            ) < amount
         );
 
         generatedSQL =
           `SELECT * FROM [${selectedSheet}] ` +
           `WHERE [${salaryColumn}] < ${amount};`;
+
+        filterApplied = true;
       }
     }
 
-    // Show everything
+    // Explicitly show all rows
     if (
       text.includes("show all") ||
       text.includes("all rows") ||
@@ -225,6 +315,16 @@ function App() {
 
       generatedSQL =
         `SELECT * FROM [${selectedSheet}];`;
+
+      filterApplied = true;
+    }
+
+    // If no supported filter was detected
+    if (!filterApplied) {
+      generatedSQL =
+        `SELECT * FROM [${selectedSheet}];`;
+
+      filteredRows = [...excelRows];
     }
 
     setSql(generatedSQL);
@@ -239,9 +339,23 @@ function App() {
         resultCount: filteredRows.length,
       },
     ]);
+
+    if (filteredRows.length === 0) {
+      setSuccessMessage("");
+      setError(
+        "The query was generated, but no matching records were found."
+      );
+    } else {
+      setError("");
+      setSuccessMessage(
+        `${filteredRows.length} record${
+          filteredRows.length === 1 ? "" : "s"
+        } found successfully.`
+      );
+    }
   };
 
-  // 10. Query the SQL Server backend
+  // 13. Query SQL Server through Express
   const queryDatabase = async () => {
     const response = await fetch(
       "http://localhost:5000/generate-sql",
@@ -265,29 +379,67 @@ function App() {
       );
     }
 
-    setSql(data.sql || "");
-    setResults(data.results || []);
+    const returnedResults = data.results || [];
+    const returnedSQL =
+      data.sql || "-- Query not recognized";
+
+    setSql(returnedSQL);
+    setResults(returnedResults);
 
     setHistory((previousHistory) => [
       ...previousHistory,
       {
         source: "SQL Server",
         prompt,
-        sql: data.sql || "",
-        resultCount: data.results?.length || 0,
+        sql: returnedSQL,
+        resultCount: returnedResults.length,
       },
     ]);
+
+    if (returnedSQL.includes("not recognized")) {
+      setSuccessMessage("");
+      setError(
+        "The request was not recognized. Try one of the suggested questions."
+      );
+    } else if (returnedResults.length === 0) {
+      setSuccessMessage("");
+      setError(
+        "The query was generated, but no matching records were found."
+      );
+    } else {
+      setError("");
+      setSuccessMessage(
+        `${returnedResults.length} record${
+          returnedResults.length === 1
+            ? ""
+            : "s"
+        } found successfully.`
+      );
+    }
   };
 
-  // 11. Generate from the selected source
+  // 14. Generate the query
   const generateQuery = async () => {
     if (!prompt.trim()) {
       setError("Please enter a request.");
+      setSuccessMessage("");
+      return;
+    }
+
+    if (
+      dataSource === "excel" &&
+      excelRows.length === 0
+    ) {
+      setError(
+        "Please upload an Excel or CSV file first."
+      );
+      setSuccessMessage("");
       return;
     }
 
     setLoading(true);
     setError("");
+    setSuccessMessage("");
 
     try {
       if (dataSource === "database") {
@@ -303,6 +455,7 @@ function App() {
           "The request could not be processed."
       );
 
+      setSuccessMessage("");
       setSql("");
       setResults([]);
     } finally {
@@ -310,47 +463,137 @@ function App() {
     }
   };
 
-  // 12. Copy generated SQL
+  // 15. Use a suggested request
+  const useSuggestion = (suggestion) => {
+    setPrompt(suggestion);
+    setError("");
+    setSuccessMessage("");
+  };
+
+  // 16. Copy generated SQL
   const copySQL = async () => {
     if (!sql) {
       setError("There is no query to copy.");
+      setSuccessMessage("");
       return;
     }
 
     try {
       await navigator.clipboard.writeText(sql);
+
       setError("");
-      alert("SQL copied!");
+      setSuccessMessage(
+        "The SQL query was copied."
+      );
     } catch {
-      setError("The SQL query could not be copied.");
+      setError(
+        "The SQL query could not be copied."
+      );
+
+      setSuccessMessage("");
     }
   };
 
-  // 13. Clear the uploaded spreadsheet
-  const clearUploadedFile = () => {
-    setWorkbook(null);
-    setSheetNames([]);
-    setSelectedSheet("");
-    setExcelRows([]);
-    setColumns([]);
-    setUploadedFileName("");
-    setResults([]);
-    setSql("");
+  // 17. Export results to Excel
+  const exportResultsToExcel = () => {
+    if (results.length === 0) {
+      setError("There are no results to export.");
+      setSuccessMessage("");
+      return;
+    }
+
+    const worksheet =
+      XLSX.utils.json_to_sheet(results);
+
+    const exportWorkbook =
+      XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(
+      exportWorkbook,
+      worksheet,
+      "Query Results"
+    );
+
+    const currentDate = new Date()
+      .toISOString()
+      .slice(0, 10);
+
+    XLSX.writeFile(
+      exportWorkbook,
+      `query-results-${currentDate}.xlsx`
+    );
+
+    setError("");
+    setSuccessMessage(
+      "The results were exported to Excel."
+    );
   };
 
-  // 14. Clear current request and output
+  // 18. Export results to CSV
+  const exportResultsToCSV = () => {
+    if (results.length === 0) {
+      setError("There are no results to export.");
+      setSuccessMessage("");
+      return;
+    }
+
+    const worksheet =
+      XLSX.utils.json_to_sheet(results);
+
+    const csvContent =
+      XLSX.utils.sheet_to_csv(worksheet);
+
+    const csvBlob = new Blob([csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const downloadURL =
+      URL.createObjectURL(csvBlob);
+
+    const downloadLink =
+      document.createElement("a");
+
+    const currentDate = new Date()
+      .toISOString()
+      .slice(0, 10);
+
+    downloadLink.href = downloadURL;
+    downloadLink.download =
+      `query-results-${currentDate}.csv`;
+
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+
+    URL.revokeObjectURL(downloadURL);
+
+    setError("");
+    setSuccessMessage(
+      "The results were exported to CSV."
+    );
+  };
+
+  // 19. Clear current query
   const clearCurrentQuery = () => {
     setPrompt("");
     setSql("");
     setResults([]);
     setError("");
+    setSuccessMessage("");
   };
 
-  // 15. Display any returned rows dynamically
-  const renderResultsTable = (
-    rows,
-    className = "results-table"
-  ) => {
+  // 20. Change data source
+  const changeDataSource = (newSource) => {
+    setDataSource(newSource);
+    setPrompt("");
+    setSql("");
+    setResults([]);
+    setError("");
+    setSuccessMessage("");
+  };
+
+  // 21. Render a dynamic result table
+  const renderResultsTable = (rows) => {
     if (rows.length === 0) {
       return (
         <p className="empty-message">
@@ -363,7 +606,7 @@ function App() {
 
     return (
       <div className="table-wrapper">
-        <table className={className}>
+        <table>
           <thead>
             <tr>
               {tableColumns.map((column) => (
@@ -393,133 +636,171 @@ function App() {
 
   return (
     <div className="container">
-      <div className="card">
-        <h1>AI Data Query Generator</h1>
+      <main className="card">
+        <header className="app-header">
+          <div>
+            <p className="eyebrow">
+              Full-Stack Data Assistant
+            </p>
 
-        <p className="subtitle">
-          Query SQL Server or analyze an uploaded Excel
-          or CSV file using natural language.
-        </p>
+            <h1>AI Data Query Generator</h1>
 
-        <h2>Choose Data Source</h2>
+            <p className="subtitle">
+              Query SQL Server or analyze an uploaded
+              Excel or CSV file using natural language.
+            </p>
+          </div>
 
-        <div className="source-selector">
-          <button
-            className={
-              dataSource === "database"
-                ? "source-button active-source"
-                : "source-button"
-            }
-            onClick={() => {
-              setDataSource("database");
-              setSql("");
-              setResults([]);
-              setError("");
-            }}
-          >
-            SQL Server
-          </button>
+          <div className="status-badge">
+            {dataSource === "database"
+              ? "SQL Server Mode"
+              : "Spreadsheet Mode"}
+          </div>
+        </header>
 
-          <button
-            className={
-              dataSource === "excel"
-                ? "source-button active-source"
-                : "source-button"
-            }
-            onClick={() => {
-              setDataSource("excel");
-              setSql("");
-              setResults([]);
-              setError("");
-            }}
-          >
-            Excel / CSV
-          </button>
-        </div>
+        <section>
+          <h2>1. Choose Data Source</h2>
 
-        <div className="source-information">
-          {dataSource === "database" ? (
-            <>
-              <strong>Connected source:</strong>
-              <span>AISQLGeneratorDB</span>
-            </>
-          ) : (
-            <>
-              <label
-                className="file-label"
-                htmlFor="spreadsheet-upload"
-              >
-                Upload Excel or CSV
-              </label>
+          <div className="source-selector">
+            <button
+              className={
+                dataSource === "database"
+                  ? "source-button active-source"
+                  : "source-button"
+              }
+              onClick={() =>
+                changeDataSource("database")
+              }
+            >
+              SQL Server
+            </button>
 
-              <input
-                id="spreadsheet-upload"
-                className="file-input"
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                onChange={handleFileUpload}
-              />
+            <button
+              className={
+                dataSource === "excel"
+                  ? "source-button active-source"
+                  : "source-button"
+              }
+              onClick={() =>
+                changeDataSource("excel")
+              }
+            >
+              Excel / CSV
+            </button>
+          </div>
 
-              {uploadedFileName && (
-                <div className="file-details">
-                  <p>
-                    <strong>File:</strong>{" "}
-                    {uploadedFileName}
-                  </p>
+          <div className="source-information">
+            {dataSource === "database" ? (
+              <div>
+                <p className="source-title">
+                  Connected Database
+                </p>
 
-                  {sheetNames.length > 0 && (
-                    <div className="sheet-selector">
-                      <label htmlFor="sheet-select">
-                        Sheet:
-                      </label>
+                <p className="source-value">
+                  AISQLGeneratorDB
+                </p>
 
-                      <select
-                        id="sheet-select"
-                        value={selectedSheet}
-                        onChange={handleSheetChange}
-                      >
-                        {sheetNames.map((sheetName) => (
-                          <option
-                            key={sheetName}
-                            value={sheetName}
-                          >
-                            {sheetName}
-                          </option>
-                        ))}
-                      </select>
+                <p className="privacy-note">
+                  Database requests are processed by
+                  the Express backend. This version
+                  supports predefined read-only
+                  queries.
+                </p>
+              </div>
+            ) : (
+              <div>
+                <label
+                  className="file-label"
+                  htmlFor="spreadsheet-upload"
+                >
+                  Upload Excel or CSV
+                </label>
+
+                <input
+                  id="spreadsheet-upload"
+                  className="file-input"
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={handleFileUpload}
+                />
+
+                <p className="privacy-note">
+                  The uploaded spreadsheet is
+                  processed inside the browser. Use
+                  clear column names such as
+                  Department, Salary, EmployeeName,
+                  or Date for better results.
+                </p>
+
+                {uploadedFileName && (
+                  <div className="file-details">
+                    <p>
+                      <strong>File:</strong>{" "}
+                      {uploadedFileName}
+                    </p>
+
+                    {sheetNames.length > 0 && (
+                      <div className="sheet-selector">
+                        <label htmlFor="sheet-select">
+                          Sheet:
+                        </label>
+
+                        <select
+                          id="sheet-select"
+                          value={selectedSheet}
+                          onChange={handleSheetChange}
+                        >
+                          {sheetNames.map(
+                            (sheetName) => (
+                              <option
+                                key={sheetName}
+                                value={sheetName}
+                              >
+                                {sheetName}
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </div>
+                    )}
+
+                    <div className="file-statistics">
+                      <span>
+                        Rows: {excelRows.length}
+                      </span>
+
+                      <span>
+                        Columns: {columns.length}
+                      </span>
                     </div>
-                  )}
 
-                  <p>
-                    <strong>Rows:</strong>{" "}
-                    {excelRows.length}
-                  </p>
+                    <p className="column-list">
+                      <strong>
+                        Detected columns:
+                      </strong>{" "}
+                      {columns.join(", ") || "None"}
+                    </p>
 
-                  <p>
-                    <strong>Columns:</strong>{" "}
-                    {columns.join(", ") || "None"}
-                  </p>
-
-                  <button
-                    className="danger-button"
-                    onClick={clearUploadedFile}
-                  >
-                    Remove File
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+                    <button
+                      className="danger-button"
+                      onClick={clearUploadedFile}
+                    >
+                      Remove File
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
 
         {dataSource === "excel" &&
           excelRows.length > 0 && (
-            <>
+            <section>
               <h2>Spreadsheet Preview</h2>
 
               {renderResultsTable(
-                excelRows.slice(0, 5),
-                "preview-table"
+                excelRows.slice(0, 5)
               )}
 
               {excelRows.length > 5 && (
@@ -528,119 +809,179 @@ function App() {
                   {excelRows.length} rows.
                 </p>
               )}
-            </>
+            </section>
           )}
 
-        <h2>Ask About the Data</h2>
+        <section>
+          <h2>2. Ask About the Data</h2>
 
-        <label htmlFor="prompt">
-          Describe the records you want:
-        </label>
+          <div className="suggestions-section">
+            <p className="suggestions-title">
+              Not sure what to ask? Try one:
+            </p>
 
-        <textarea
-          id="prompt"
-          rows="5"
-          value={prompt}
-          onChange={(event) =>
-            setPrompt(event.target.value)
-          }
-          placeholder={`Try:
+            <div className="suggestions-list">
+              {suggestions.map((suggestion) => (
+                <button
+                  key={suggestion}
+                  className="suggestion-button"
+                  onClick={() =>
+                    useSuggestion(suggestion)
+                  }
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <label htmlFor="prompt">
+            Describe the records you want:
+          </label>
+
+          <textarea
+            id="prompt"
+            rows="5"
+            value={prompt}
+            onChange={(event) =>
+              setPrompt(event.target.value)
+            }
+            placeholder={`Examples:
 Show all employees
 Show HR employees
 Show employees with salary above 50000`}
-        />
+          />
 
-        <div className="button-group">
-          <button
-            onClick={generateQuery}
-            disabled={loading}
-          >
-            {loading
-              ? "Processing..."
-              : "Generate Query"}
-          </button>
+          <div className="button-group">
+            <button
+              onClick={generateQuery}
+              disabled={loading}
+            >
+              {loading
+                ? "Processing..."
+                : "Generate Query"}
+            </button>
 
-          <button
-            className="secondary-button"
-            onClick={copySQL}
-          >
-            Copy SQL
-          </button>
+            <button
+              className="secondary-button"
+              onClick={copySQL}
+            >
+              Copy SQL
+            </button>
 
-          <button
-            className="secondary-button"
-            onClick={clearCurrentQuery}
-          >
-            Clear
-          </button>
-        </div>
-
-        {error && (
-          <div className="error-message">
-            {error}
+            <button
+              className="secondary-button"
+              onClick={clearCurrentQuery}
+            >
+              Clear
+            </button>
           </div>
-        )}
 
-        <h2>Generated SQL</h2>
+          {successMessage && (
+            <div className="success-message">
+              {successMessage}
+            </div>
+          )}
 
-        <pre>
-          {sql ||
-            "-- Your generated query will appear here"}
-        </pre>
+          {error && (
+            <div className="error-message">
+              {error}
+            </div>
+          )}
+        </section>
 
-        <div className="results-heading">
-          <h2>Results</h2>
+        <section>
+          <h2>3. Generated SQL</h2>
 
-          <span className="result-count">
-            {results.length} record
-            {results.length === 1 ? "" : "s"}
-          </span>
-        </div>
+          <pre>
+            {sql ||
+              "-- Your generated query will appear here"}
+          </pre>
+        </section>
 
-        {renderResultsTable(results)}
+        <section>
+          <div className="results-heading">
+            <div>
+              <h2>4. Results</h2>
 
-        <div className="history-header">
-          <h2>Query History</h2>
+              <span className="result-count">
+                {results.length} record
+                {results.length === 1 ? "" : "s"}
+              </span>
+            </div>
 
-          <button
-            className="danger-button"
-            onClick={() => setHistory([])}
-          >
-            Clear History
-          </button>
-        </div>
-
-        {history.length > 0 ? (
-          <div className="history-list">
-            {history.map((item, index) => (
-              <div
-                className="history-item"
-                key={index}
+            <div className="export-buttons">
+              <button
+                className="export-button"
+                onClick={exportResultsToExcel}
+                disabled={results.length === 0}
               >
-                <strong>
-                  Request {index + 1}
-                </strong>
+                Export Excel
+              </button>
 
-                <p className="history-source">
-                  Source: {item.source}
-                </p>
-
-                <p>{item.prompt}</p>
-
-                <code>{item.sql}</code>
-
-                <p>
-                  Results: {item.resultCount}
-                </p>
-              </div>
-            ))}
+              <button
+                className="export-button csv-button"
+                onClick={exportResultsToCSV}
+                disabled={results.length === 0}
+              >
+                Export CSV
+              </button>
+            </div>
           </div>
-        ) : (
-          <p className="empty-message">
-            No query history yet.
-          </p>
-        )}
-      </div>
+
+          {renderResultsTable(results)}
+        </section>
+
+        <section>
+          <div className="history-header">
+            <h2>Query History</h2>
+
+            <button
+              className="danger-button"
+              onClick={() => setHistory([])}
+              disabled={history.length === 0}
+            >
+              Clear History
+            </button>
+          </div>
+
+          {history.length > 0 ? (
+            <div className="history-list">
+              {history.map((item, index) => (
+                <div
+                  className="history-item"
+                  key={index}
+                >
+                  <div className="history-item-header">
+                    <strong>
+                      Request {index + 1}
+                    </strong>
+
+                    <span>
+                      {item.resultCount} result
+                      {item.resultCount === 1
+                        ? ""
+                        : "s"}
+                    </span>
+                  </div>
+
+                  <p className="history-source">
+                    Source: {item.source}
+                  </p>
+
+                  <p>{item.prompt}</p>
+
+                  <code>{item.sql}</code>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="empty-message">
+              No query history yet.
+            </p>
+          )}
+        </section>
+      </main>
     </div>
   );
 }
