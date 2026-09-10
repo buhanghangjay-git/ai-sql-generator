@@ -1,48 +1,140 @@
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
   font-family: Arial, Helvetica, sans-serif;
   background: #0f172a;
-  color: white;
+  color: #f8fafc;
+}
+
+button,
+textarea {
+  font: inherit;
 }
 
 .container {
-  max-width: 900px;
-  margin: auto;
-  padding: 40px;
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 40px 20px;
 }
 
 .card {
   background: #1e293b;
-  padding: 20px;
-  border-radius: 12px;
+  padding: 30px;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.3);
+}
+
+h1 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  color: #f8fafc;
+}
+
+h2 {
+  margin-top: 30px;
+  margin-bottom: 12px;
+  color: #e2e8f0;
+}
+
+.subtitle {
+  margin-top: 0;
+  margin-bottom: 24px;
+  color: #94a3b8;
+}
+
+label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: bold;
 }
 
 textarea {
+  display: block;
   width: 100%;
-  padding: 12px;
-  border-radius: 8px;
+  padding: 14px;
+  border: 1px solid #475569;
+  border-radius: 10px;
   background: #0f172a;
-  color: white;
-  border: 1px solid #334155;
+  color: #f8fafc;
+  resize: vertical;
+  outline: none;
+}
+
+textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.button-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
 }
 
 button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
   background: #3b82f6;
   color: white;
-  border: none;
-  padding: 10px 16px;
-  border-radius: 8px;
   cursor: pointer;
-  margin-right: 10px;
+  font-weight: bold;
 }
 
 button:hover {
   background: #2563eb;
 }
 
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.secondary-button {
+  background: #475569;
+}
+
+.secondary-button:hover {
+  background: #64748b;
+}
+
+.danger-button {
+  background: #dc2626;
+}
+
+.danger-button:hover {
+  background: #b91c1c;
+}
+
 pre {
+  min-height: 55px;
+  margin: 0;
+  padding: 16px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
   background: #020617;
-  color: #22c55e;
-  padding: 15px;
+  color: #4ade80;
+}
+
+.error-message {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid #ef4444;
   border-radius: 8px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+}
+
+.table-wrapper {
+  width: 100%;
 }
