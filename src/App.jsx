@@ -1,11 +1,11 @@
 import { useState } from "react";
 import * as XLSX from "xlsx";
 import "./App.css";
-import Header from "./components/Header";
-import StatsCards from "./components/StatsCards";
+
 import Header from "./components/Header";
 import StatsCards from "./components/StatsCards";
 import ResultsTable from "./components/ResultsTable";
+import Suggestions from "./components/Suggestions";
 
 
 function App() {
@@ -598,48 +598,17 @@ function App() {
     setSuccessMessage("");
   };
 
-
-    const tableColumns = Object.keys(rows[0]);
-
-    return (
-      <div className="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              {tableColumns.map((column) => (
-                <th key={column}>{column}</th>
-              ))}
-            </tr>
-          </thead>
-
-          <tbody>
-            {rows.map((row, rowIndex) => (
-              <tr key={rowIndex}>
-                {tableColumns.map((column) => (
-                  <td key={`${rowIndex}-${column}`}>
-                    {row[column] === null ||
-                    row[column] === ""
-                      ? "NULL"
-                      : String(row[column])}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
-
   return (
     <div className="container">
       <main className="card">
         <Header dataSource={dataSource} />
+
         <StatsCards
           queryCount={history.length}
           resultCount={results.length}
           dataSource={dataSource}
         />
+
         <section>
           <h2>1. Choose Data Source</h2>
 
@@ -781,10 +750,8 @@ function App() {
             <section>
               <h2>Spreadsheet Preview</h2>
 
-              {renderResultsTable(
-                excelRows.slice(0, 5)
-              )}
-
+              <ResultsTable rows={excelRows.slice(0, 5)} />
+              <ResultsTable rows={results} />
               {excelRows.length > 5 && (
                 <p className="preview-note">
                   Showing the first 5 of{" "}
@@ -952,5 +919,6 @@ Show employees with salary above 50000`}
       </main>
     </div>
   );
-  
+}
+
 export default App;
