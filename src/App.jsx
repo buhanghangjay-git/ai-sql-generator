@@ -1,6 +1,12 @@
 import { useState } from "react";
 import * as XLSX from "xlsx";
 import "./App.css";
+import Header from "./components/Header";
+import StatsCards from "./components/StatsCards";
+import Header from "./components/Header";
+import StatsCards from "./components/StatsCards";
+import ResultsTable from "./components/ResultsTable";
+
 
 function App() {
   // 1. Data source
@@ -592,15 +598,6 @@ function App() {
     setSuccessMessage("");
   };
 
-  // 21. Render a dynamic result table
-  const renderResultsTable = (rows) => {
-    if (rows.length === 0) {
-      return (
-        <p className="empty-message">
-          No records to display.
-        </p>
-      );
-    }
 
     const tableColumns = Object.keys(rows[0]);
 
@@ -637,27 +634,12 @@ function App() {
   return (
     <div className="container">
       <main className="card">
-        <header className="app-header">
-          <div>
-            <p className="eyebrow">
-              Full-Stack Data Assistant
-            </p>
-
-            <h1>AI Data Query Generator</h1>
-
-            <p className="subtitle">
-              Query SQL Server or analyze an uploaded
-              Excel or CSV file using natural language.
-            </p>
-          </div>
-
-          <div className="status-badge">
-            {dataSource === "database"
-              ? "SQL Server Mode"
-              : "Spreadsheet Mode"}
-          </div>
-        </header>
-
+        <Header dataSource={dataSource} />
+        <StatsCards
+          queryCount={history.length}
+          resultCount={results.length}
+          dataSource={dataSource}
+        />
         <section>
           <h2>1. Choose Data Source</h2>
 
@@ -929,7 +911,8 @@ Show employees with salary above 50000`}
             </div>
           </div>
 
-          {renderResultsTable(results)}
+          <ResultsTable rows={results} />
+
         </section>
 
         <section>

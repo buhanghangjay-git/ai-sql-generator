@@ -541,3 +541,36 @@ tbody tr:last-child td {
     width: auto;
   }
 }
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(180px, 1fr)
+  );
+  gap: 15px;
+  margin-top: 20px;
+  margin-bottom: 25px;
+}
+
+.stat-card {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 15px;
+}
+
+.stat-title {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.stat-card h3 {
+  margin-top: 8px;
+  margin-bottom: 0;
+  font-size: 24px;
+  color: #f8fafc;
+}
