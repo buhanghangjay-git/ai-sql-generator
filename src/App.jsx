@@ -645,7 +645,7 @@ function App() {
         />
 
         <section>
-          <h2>1. Choose Data Source</h2>
+          <h2>Data Source</h2>
 
           <div className="source-selector">
             <button
@@ -797,7 +797,7 @@ function App() {
           )}
 
         <section>
-          <h2>2. Ask About the Data</h2>
+          <h2>Ask Your Question</h2>
 
           <Suggestions
             suggestions={suggestions}
@@ -871,7 +871,7 @@ Show employees with salary above 50000`}
         <section>
           <div className="results-heading">
             <div>
-              <h2>4. Results</h2>
+              <h2>Results</h2>
 
               <span className="result-count">
                 {results.length} record
