@@ -62,7 +62,7 @@ button:disabled {
 }
 
 .card {
-  padding: 34px;
+  padding: 24px;
   border: 1px solid #334155;
   border-radius: 18px;
   background: rgba(30, 41, 59, 0.96);
@@ -415,8 +415,9 @@ table {
 
 th,
 td {
-  padding: 13px 15px;
+  padding: 8px 10px;
   text-align: left;
+  font-size: 13px;
   white-space: nowrap;
   border-bottom: 1px solid #334155;
 }
@@ -666,4 +667,81 @@ tbody tr:last-child td {
   text-align: center;
   color: #94a3b8;
   font-size: 13px;
+}
+
+
+.theme-light {
+  background: #f1f5f9;
+  color: #111827;
+}
+
+.theme-light .card {
+  background: white;
+  color: #111827;
+}
+
+.theme-light .app-header {
+  border-bottom: 1px solid #d1d5db;
+}
+
+.theme-light .subtitle,
+.theme-light .privacy-note,
+.theme-light .result-count,
+.theme-light .history-source {
+  color: #4b5563;
+}
+
+.theme-light .source-information,
+.theme-light .stat-card,
+.theme-light .summary-card,
+.theme-light .chart-card,
+.theme-light .history-item,
+.theme-light .suggestions-section {
+  background: #f8fafc;
+  border: 1px solid #d1d5db;
+}
+
+.theme-light textarea {
+  background: white;
+  color: #111827;
+  border: 1px solid #d1d5db;
+}
+
+.theme-light textarea::placeholder {
+  color: #6b7280;
+}
+
+.theme-light pre {
+  background: #f3f4f6;
+  color: #111827;
+  border: 1px solid #d1d5db;
+}
+
+.theme-light table {
+  background: white;
+}
+
+.theme-light th {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.theme-light td {
+  color: #111827;
+}
+
+.theme-light tbody tr:hover {
+  background: #f3f4f6;
+}
+
+.theme-light .empty-message {
+  color: #374151;
+  border-color: #d1d5db;
+}
+
+.theme-light h1,
+.theme-light h2,
+.theme-light h3,
+.theme-light label {
+  color: #111827;
 }

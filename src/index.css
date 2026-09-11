@@ -52,14 +52,13 @@
 
 body {
   margin: 0;
+  font-size: 13px;
 }
 
 #root {
-  width: 1126px;
+  width: 1280px;
   max-width: 100%;
   margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
   min-height: 100svh;
   display: flex;
   flex-direction: column;
@@ -74,26 +73,36 @@ h2 {
 }
 
 h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
+  font-size: 30px;
+  letter-spacing: -0.5px;
+  margin: 20px 0;
+
   @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
+    font-size: 26px;
+    margin: 16px 0;
   }
 }
+
 h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
+  font-size: 16px;
+  line-height: 120%;
+  letter-spacing: 0;
+  margin: 0 0 10px;
+
   @media (max-width: 1024px) {
-    font-size: 20px;
+    font-size: 14px;
   }
 }
+
+h3 {
+  font-size: 18px;
+  margin: 0;
+}
+
 p {
   margin: 0;
 }
+
 
 code,
 .counter {

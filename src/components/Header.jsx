@@ -2,11 +2,7 @@ function Header({ dataSource }) {
   return (
     <header className="app-header">
       <div>
-        <p className="eyebrow">
-          Full-Stack Data Assistant
-        </p>
-
-        <h1>AI Data Query Generator</h1>
+        <h1>AI Data Analytics Dashboard</h1>
 
         <p className="subtitle">
           Query SQL Server or analyze uploaded
