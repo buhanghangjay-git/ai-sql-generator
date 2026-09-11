@@ -36,6 +36,7 @@ function App() {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] =
     useState("");
+  const [theme, setTheme] = useState("dark");
 
   // 5. Suggested requests
   const databaseSuggestions = [
@@ -606,11 +607,36 @@ function App() {
   const clearHistory = () => {
     setHistory([]);
   };
+
+  // 22. Toggle between light and dark themes
+  const toggleTheme = () => {
+    setTheme((previousTheme) =>
+    previousTheme === "dark"
+      ? "light"
+      : "dark"
+    );
+  };
+  
   return (
-    <div className="container">
+    <div
+  className={`container ${
+    theme === "dark"
+      ? "theme-dark"
+      : "theme-light"
+  }`}
+>
       <main className="card">
         <Header dataSource={dataSource} />
-
+          <div className="theme-toggle-wrapper">
+            <button
+                className="theme-button"
+                onClick={toggleTheme}
+                  >
+                {theme === "dark"
+                ? "☀ Light Mode"
+                : "🌙 Dark Mode"}
+            </button>
+          </div>
         <StatsCards
           queryCount={history.length}
           resultCount={results.length}

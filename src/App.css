@@ -612,3 +612,51 @@ tbody tr:last-child td {
   padding: 20px;
   margin-bottom: 25px;
 }
+
+.theme-toggle-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 15px;
+}
+
+.theme-button {
+  background: #475569;
+}
+
+.theme-button:hover {
+  background: #64748b;
+}
+
+.theme-dark {
+  color: #f8fafc;
+}
+
+.theme-light {
+  color: #111827;
+}
+
+.theme-light .card {
+  background: #ffffff;
+  color: #111827;
+}
+
+.theme-light .stat-card,
+.theme-light .summary-card,
+.theme-light .chart-card,
+.theme-light .source-information {
+  background: #f8fafc;
+  color: #111827;
+}
+
+.theme-light table {
+  background: white;
+}
+
+.theme-light th {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.theme-light td {
+  color: #111827;
+}
