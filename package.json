@@ -12,6 +12,8 @@
   "dependencies": {
     "chart.js": "^4.5.1",
     "dotenv": "^17.4.2",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
     "msnodesqlv8": "^5.4.0",
     "mssql": "^12.7.1",
     "react": "^19.2.8",

@@ -12,6 +12,8 @@ import SummaryPanel from "./components/SummaryPanel";
 import Footer from "./components/Footer";
 import InsightsPanel from "./components/InsightsPanel";
 
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 
 function App() {
@@ -612,6 +614,39 @@ function App() {
     );
   };
 
+  const exportPDF = async () => {
+  const input = document.getElementById("report-section");
+
+  if (!input) {
+    alert("Report section not found.");
+    return;
+  }
+
+  const canvas = await html2canvas(input);
+
+  const imgData = canvas.toDataURL("image/png");
+
+  const pdf = new jsPDF("p", "mm", "a4");
+
+  const pdfWidth = pdf.internal.pageSize.getWidth();
+
+  const imgWidth = pdfWidth - 20;
+
+  const imgHeight =
+    (canvas.height * imgWidth) / canvas.width;
+
+  pdf.addImage(
+    imgData,
+    "PNG",
+    10,
+    10,
+    imgWidth,
+    imgHeight
+  );
+
+  pdf.save("AI_SQL_Report.pdf");
+};
+
   // 19. Clear current query
   const clearCurrentQuery = () => {
     setPrompt("");
@@ -993,14 +1028,26 @@ Show employees with salary above 50000`}
               >
                 Export CSV
               </button>
+
+              <button
+                className="export-button"
+                onClick={exportPDF}
+                disabled={results.length === 0}
+              >
+                Download PDF
+              </button>
             </div>
           </div>
+
+          <div id="report-section">
 
           <ResultsTable rows={results} />
           <SummaryPanel results={results} />
           <InsightsPanel results={results} />
           <ChartsPanel results={results} />
-
+          
+          </div>
+          
         </section>
         <details className="collapsible-section">
           <summary>
