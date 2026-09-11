@@ -7,6 +7,9 @@ import StatsCards from "./components/StatsCards";
 import ResultsTable from "./components/ResultsTable";
 import Suggestions from "./components/Suggestions";
 import HistoryPanel from "./components/HistoryPanel";
+import ChartsPanel from "./components/ChartsPanel";
+import SummaryPanel from "./components/SummaryPanel";
+
 
 
 function App() {
@@ -869,6 +872,8 @@ Show employees with salary above 50000`}
           </div>
 
           <ResultsTable rows={results} />
+          <SummaryPanel results={results} />
+          <ChartsPanel results={results} />
 
         </section>
               <HistoryPanel
