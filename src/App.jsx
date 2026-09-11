@@ -9,6 +9,7 @@ import Suggestions from "./components/Suggestions";
 import HistoryPanel from "./components/HistoryPanel";
 import ChartsPanel from "./components/ChartsPanel";
 import SummaryPanel from "./components/SummaryPanel";
+import Footer from "./components/Footer";
 
 
 
@@ -906,7 +907,7 @@ Show employees with salary above 50000`}
                 history={history}
                 clearHistory={clearHistory} 
               />
-        
+        <Footer/>
       </main>
     </div>
   );

@@ -660,3 +660,10 @@ tbody tr:last-child td {
 .theme-light td {
   color: #111827;
 }
+
+.footer {
+  margin-top: 40px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 13px;
+}
