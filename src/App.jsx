@@ -26,6 +26,8 @@ function App() {
   const [results, setResults] = useState([]);
   const [history, setHistory] = useState([]);
   const [favorites, setFavorites] = useState([]);
+  const [sqlExplanation, setSqlExplanation] = useState("");
+  const [savedReports, setSavedReports] = useState([]);
 
   // 3. Excel and CSV information
   const [workbook, setWorkbook] = useState(null);
@@ -50,6 +52,10 @@ function App() {
   const savedFavorites =
     JSON.parse(localStorage.getItem("sqlFavorites")) || [];
 
+  const savedReportsData =
+  JSON.parse(localStorage.getItem("savedReports")) || [];
+
+  setSavedReports(savedReportsData);
   setHistory(savedHistory);
   setFavorites(savedFavorites);
 }, []);
@@ -535,6 +541,56 @@ function App() {
     }
   };
 
+    const explainSQL = () => {
+  if (!sql) {
+    setSqlExplanation(
+      "Generate a SQL query first."
+    );
+    return;
+  }
+
+  let explanation = "";
+
+  const query = sql.toLowerCase();
+
+  if (query.includes("select")) {
+    explanation +=
+      "• SELECT retrieves data from a table.\n";
+  }
+
+  if (query.includes("where")) {
+    explanation +=
+      "• WHERE filters records based on a condition.\n";
+  }
+
+  if (query.includes("&gt;")) {
+    explanation +=
+      "• The > operator returns values greater than the specified amount.\n";
+  }
+
+  if (query.includes("&lt;")) {
+    explanation +=
+      "• The < operator returns values less than the specified amount.\n";
+  }
+
+  if (query.includes("department")) {
+    explanation +=
+      "• The query filters employees by department.\n";
+  }
+
+  if (query.includes("salary")) {
+    explanation +=
+      "• Salary information is included in the results.\n";
+  }
+
+  if (!explanation) {
+    explanation =
+      "This query retrieves data from the database.";
+  }
+
+  setSqlExplanation(explanation);
+};
+
   // 17. Export results to Excel
   const exportResultsToExcel = () => {
     if (results.length === 0) {
@@ -645,6 +701,38 @@ function App() {
   );
 
   pdf.save("AI_SQL_Report.pdf");
+};
+
+  const saveReport = () => {
+  if (!sql) {
+    setError("Generate a query first.");
+    return;
+  }
+
+  const report = {
+    id: Date.now(),
+    date: new Date().toLocaleString(),
+    prompt,
+    sql,
+    records: results.length,
+    explanation: sqlExplanation,
+  };
+
+  const updatedReports = [
+    report,
+    ...savedReports,
+  ];
+
+  setSavedReports(updatedReports);
+
+  localStorage.setItem(
+    "savedReports",
+    JSON.stringify(updatedReports)
+  );
+
+  setSuccessMessage(
+    "Report saved successfully."
+  );
 };
 
   // 19. Clear current query
@@ -970,6 +1058,12 @@ Show employees with salary above 50000`}
             >
               Copy SQL
             </button>
+            <button
+              className="secondary-button"
+              onClick={explainSQL}
+            >
+              Explain SQL
+            </button>
 
             <button
               className="secondary-button"
@@ -992,13 +1086,26 @@ Show employees with salary above 50000`}
           )}
         </section>
 
-        <details className="collapsible-section">
-          <summary>SQL Query</summary>
+          <details
+            className="collapsible-section"
+            open
+          >
+            <summary>SQL Query</summary>
 
-          <pre>
-            {sql ||
-            "-- Your generated query will appear here"}
-          </pre>
+            <pre>
+              {sql ||
+                "-- Your generated query will appear here"}
+            </pre>
+
+            {sqlExplanation && (
+              <div className="sql-explanation">
+                <h3>SQL Explanation</h3>
+
+                <pre>{sqlExplanation}</pre>
+
+              
+              </div>
+            )}
           </details>
 
         <section>
@@ -1036,6 +1143,13 @@ Show employees with salary above 50000`}
               >
                 Download PDF
               </button>
+
+              <button
+                className="export-button"
+                onClick={saveReport}
+              >
+                Save Report
+              </button>
             </div>
           </div>
 
@@ -1047,7 +1161,29 @@ Show employees with salary above 50000`}
           <ChartsPanel results={results} />
           
           </div>
-          
+        <details className="collapsible-section">
+            <summary>
+              Saved Reports ({savedReports.length})
+            </summary>
+
+            {savedReports.map((report) => (
+              <div
+                key={report.id}
+                className="history-item"
+              >
+                <h4>{report.prompt}</h4>
+
+                <p>{report.date}</p>
+
+                <p>
+                  Records: {report.records}
+                </p>
+
+                <pre>{report.sql}</pre>
+              </div>
+            ))}
+          </details>
+
         </section>
         <details className="collapsible-section">
           <summary>

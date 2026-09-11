@@ -943,3 +943,16 @@ tbody tr:last-child td {
   flex: 1;
   min-width: 120px;
 }
+
+.sql-explanation {
+  margin-top: 20px;
+  padding: 16px;
+  border-radius: 10px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid #3b82f6;
+}
+
+.sql-explanation h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
