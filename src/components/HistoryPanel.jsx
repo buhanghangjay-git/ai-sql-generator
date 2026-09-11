@@ -1,6 +1,9 @@
 function HistoryPanel({
   history,
   clearHistory,
+  rerunQuery,
+  copyHistorySQL,
+  deleteHistoryItem,
 }) {
   return (
     <section>
@@ -25,7 +28,7 @@ function HistoryPanel({
             >
               <div className="history-item-header">
                 <strong>
-                  Request {index + 1}
+                  {item.prompt}
                 </strong>
 
                 <span>
@@ -43,6 +46,42 @@ function HistoryPanel({
               <p>{item.prompt}</p>
 
               <code>{item.sql}</code>
+
+                    <div className="history-actions">
+                      <button
+                        className="secondary-button"
+                        onClick={() => rerunQuery(item)}
+                      >
+                        🔄 Re-run
+                      </button>
+
+                      <button
+                        className="secondary-button"
+                        onClick={() =>
+                          copyHistorySQL(item.sql)
+                        }
+                      >
+                        📋 Copy SQL
+                      </button>
+
+                      <button
+                        className="danger-button"
+                        onClick={() =>
+                          deleteHistoryItem(index)
+                        }
+                      >
+                        🗑 Delete
+                      </button>
+                    </div>
+
+                  <div className="history-actions">
+                    <button
+                      className="secondary-button"
+                      onClick={() => rerunQuery(item)}
+                    >
+                      🔄 Re-run
+              </button>
+              </div>
             </div>
           ))}
         </div>

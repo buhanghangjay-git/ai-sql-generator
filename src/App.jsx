@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
 import "./App.css";
 
@@ -10,6 +10,7 @@ import HistoryPanel from "./components/HistoryPanel";
 import ChartsPanel from "./components/ChartsPanel";
 import SummaryPanel from "./components/SummaryPanel";
 import Footer from "./components/Footer";
+import InsightsPanel from "./components/InsightsPanel";
 
 
 
@@ -22,6 +23,7 @@ function App() {
   const [sql, setSql] = useState("");
   const [results, setResults] = useState([]);
   const [history, setHistory] = useState([]);
+  const [favorites, setFavorites] = useState([]);
 
   // 3. Excel and CSV information
   const [workbook, setWorkbook] = useState(null);
@@ -38,6 +40,17 @@ function App() {
   const [successMessage, setSuccessMessage] =
     useState("");
   const [theme, setTheme] = useState("dark");
+
+  useEffect(() => {
+  const savedHistory =
+    JSON.parse(localStorage.getItem("sqlHistory")) || [];
+
+  const savedFavorites =
+    JSON.parse(localStorage.getItem("sqlFavorites")) || [];
+
+  setHistory(savedHistory);
+  setFavorites(savedFavorites);
+}, []);
 
   // 5. Suggested requests
   const databaseSuggestions = [
@@ -342,15 +355,22 @@ function App() {
     setSql(generatedSQL);
     setResults(filteredRows);
 
-    setHistory((previousHistory) => [
-      ...previousHistory,
-      {
-        source: `Excel: ${uploadedFileName}`,
-        prompt,
-        sql: generatedSQL,
-        resultCount: filteredRows.length,
-      },
-    ]);
+    const updatedHistory = [
+  {
+    source: `Excel: ${uploadedFileName}`,
+    prompt,
+    sql: generatedSQL,
+    resultCount: filteredRows.length,
+     },
+        ...history,
+      ];
+
+      setHistory(updatedHistory);
+
+    localStorage.setItem(
+       "sqlHistory",
+       JSON.stringify(updatedHistory)
+    );
 
     if (filteredRows.length === 0) {
       setSuccessMessage("");
@@ -398,15 +418,22 @@ function App() {
     setSql(returnedSQL);
     setResults(returnedResults);
 
-    setHistory((previousHistory) => [
-      ...previousHistory,
-      {
-        source: "SQL Server",
-        prompt,
-        sql: returnedSQL,
-        resultCount: returnedResults.length,
-      },
-    ]);
+    const updatedHistory = [
+       {
+       source: "SQL Server",
+       prompt,
+       sql: returnedSQL,
+       resultCount: returnedResults.length,
+          },
+               ...history,
+        ];
+
+            setHistory(updatedHistory);
+    
+          localStorage.setItem(
+  "sqlHistory",
+  JSON.stringify(updatedHistory)
+          );
 
     if (returnedSQL.includes("not recognized")) {
       setSuccessMessage("");
@@ -605,9 +632,79 @@ function App() {
   };
 
   // 21. Clear query history
+
+  const addToFavorites = (item) => {
+  const updatedFavorites = [
+    item,
+    ...favorites,
+  ];
+
+  setFavorites(updatedFavorites);
+
+  localStorage.setItem(
+    "sqlFavorites",
+    JSON.stringify(updatedFavorites)
+  );
+
+  setSuccessMessage(
+    "Query added to favorites."
+  );
+};
+
+const rerunQuery = (item) => {
+  setPrompt(item.prompt);
+
+  setSuccessMessage(
+    `Loaded: ${item.prompt}`
+  );
+
+  setError("");
+
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth",
+  });
+};
+
+const copyHistorySQL = async (sql) => {
+  try {
+    await navigator.clipboard.writeText(sql);
+
+    setSuccessMessage(
+      "Query copied successfully."
+    );
+
+    setError("");
+  } catch {
+    setError("Unable to copy query.");
+  }
+};
+
+const deleteHistoryItem = (index) => {
+  const updatedHistory =
+    history.filter(
+      (_, itemIndex) =>
+        itemIndex !== index
+    );
+
+  setHistory(updatedHistory);
+
+  localStorage.setItem(
+    "sqlHistory",
+    JSON.stringify(updatedHistory)
+  );
+
+  setSuccessMessage(
+    "History item removed."
+  );
+
+  setError("");
+};
+
   const clearHistory = () => {
-    setHistory([]);
-  };
+  setHistory([]);
+  localStorage.removeItem("sqlHistory");
+};
 
   // 22. Toggle between light and dark themes
   const toggleTheme = () => {
@@ -618,6 +715,7 @@ function App() {
     );
   };
   
+
   return (
     <div
   className={`container ${
@@ -900,17 +998,22 @@ Show employees with salary above 50000`}
 
           <ResultsTable rows={results} />
           <SummaryPanel results={results} />
+          <InsightsPanel results={results} />
           <ChartsPanel results={results} />
+
         </section>
         <details className="collapsible-section">
           <summary>
              History ({history.length})
           </summary>
 
-         <HistoryPanel
-             history={history}
-             clearHistory={clearHistory}
-             />
+              <HistoryPanel
+                  history={history}
+                  clearHistory={clearHistory}
+                  rerunQuery={rerunQuery}
+                  copyHistorySQL={copyHistorySQL}
+                  deleteHistoryItem={deleteHistoryItem}
+                />
           </details>
         <Footer/>
       </main>

@@ -102,9 +102,7 @@ function ChartsPanel({ results }) {
     <>
       {departmentField && (
         <section>
-          <h2>
-            📊 Department Distribution
-          </h2>
+          <h2>Department Distribution</h2>
 
           <div className="chart-card">
             <Bar data={departmentData} />
@@ -114,9 +112,7 @@ function ChartsPanel({ results }) {
 
       {salaryData && (
         <section>
-          <h2>
-            💰 Salary Distribution
-          </h2>
+          <h2>Salary Distribution</h2>
 
           <div className="chart-card">
             <Bar data={salaryData} />

@@ -696,9 +696,19 @@ tbody tr:last-child td {
 .theme-light .summary-card,
 .theme-light .chart-card,
 .theme-light .history-item,
-.theme-light .suggestions-section {
+.theme-light .suggestions-section,
+.theme-light .insight-card {
   background: #f8fafc;
   border: 1px solid #d1d5db;
+  color: #111827;
+}
+
+.theme-light .insight-card li {
+  color: #111827;
+}
+
+.theme-light .insight-card ul {
+  color: #111827;
 }
 
 .theme-light textarea {
@@ -760,4 +770,176 @@ tbody tr:last-child td {
 
 .collapsible-section summary:hover {
   color: #60a5fa;
+}
+
+.insight-card {
+  border-radius: 12px;
+  padding: 18px;
+  margin-bottom: 20px;
+  background: #0f172a;
+  border: 1px solid #334155;
+  color: #f8fafc;
+}
+
+.insight-card ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.insight-card li {
+  margin-bottom: 8px;
+}
+
+/* ==========================================
+   COMPLETE LIGHT THEME FIX
+========================================== */
+
+.theme-light {
+  background: #f5f7fa;
+  color: #111827;
+}
+
+.theme-light .card {
+  background: #ffffff;
+  color: #111827;
+}
+
+.theme-light h1,
+.theme-light h2,
+.theme-light h3,
+.theme-light h4,
+.theme-light p,
+.theme-light label,
+.theme-light strong,
+.theme-light span {
+  color: #111827;
+}
+
+/* Cards */
+
+.theme-light .stat-card,
+.theme-light .summary-card,
+.theme-light .chart-card,
+.theme-light .insight-card,
+.theme-light .history-item,
+.theme-light .source-information,
+.theme-light .suggestions-section {
+  background: #f8fafc;
+  border: 1px solid #d1d5db;
+  color: #111827;
+}
+
+/* Insight Panel */
+
+.theme-light .insight-card,
+.theme-light .insight-card ul,
+.theme-light .insight-card li {
+  color: #111827;
+}
+
+/* SQL Query */
+
+.theme-light pre {
+  background: #f3f4f6;
+  color: #111827;
+  border: 1px solid #d1d5db;
+}
+
+/* Textarea */
+
+.theme-light textarea {
+  background: #ffffff;
+  color: #111827;
+  border: 1px solid #d1d5db;
+}
+
+.theme-light textarea::placeholder {
+  color: #6b7280;
+}
+
+/* Buttons */
+
+.theme-light .secondary-button {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.theme-light .theme-button {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+/* Tables */
+
+.theme-light table {
+  background: #ffffff;
+}
+
+.theme-light th {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.theme-light td {
+  color: #111827;
+}
+
+.theme-light tbody tr:hover {
+  background: #f3f4f6;
+}
+
+/* History */
+
+.theme-light .history-source {
+  color: #2563eb !important;
+}
+
+/* Details */
+
+.theme-light .collapsible-section summary {
+  color: #374151;
+}
+
+.theme-light .collapsible-section summary:hover {
+  color: #2563eb;
+}
+
+/* Footer */
+
+.theme-light .footer {
+  color: #4b5563;
+}
+
+/* Result Count */
+
+.theme-light .result-count {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+/* Empty States */
+
+.theme-light .empty-message {
+  border: 1px dashed #d1d5db;
+  color: #4b5563;
+}
+
+.history-actions {
+  margin-top: 10px;
+}
+
+.history-actions button {
+  width: 100%;
+}
+
+.history-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.history-actions button {
+  flex: 1;
+  min-width: 120px;
 }
