@@ -859,14 +859,14 @@ Show employees with salary above 50000`}
           )}
         </section>
 
-        <section>
-          <h2>3. Generated SQL</h2>
+        <details className="collapsible-section">
+          <summary>SQL Query</summary>
 
           <pre>
             {sql ||
-              "-- Your generated query will appear here"}
+            "-- Your generated query will appear here"}
           </pre>
-        </section>
+          </details>
 
         <section>
           <div className="results-heading">
@@ -901,12 +901,17 @@ Show employees with salary above 50000`}
           <ResultsTable rows={results} />
           <SummaryPanel results={results} />
           <ChartsPanel results={results} />
-
         </section>
-              <HistoryPanel
-                history={history}
-                clearHistory={clearHistory} 
-              />
+        <details className="collapsible-section">
+          <summary>
+             History ({history.length})
+          </summary>
+
+         <HistoryPanel
+             history={history}
+             clearHistory={clearHistory}
+             />
+          </details>
         <Footer/>
       </main>
     </div>
