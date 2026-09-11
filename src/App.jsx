@@ -703,9 +703,10 @@ function App() {
   pdf.save("AI_SQL_Report.pdf");
 };
 
-  const saveReport = () => {
+const saveReport = () => {
   if (!sql) {
     setError("Generate a query first.");
+    setSuccessMessage("");
     return;
   }
 
@@ -730,9 +731,22 @@ function App() {
     JSON.stringify(updatedReports)
   );
 
-  setSuccessMessage(
-    "Report saved successfully."
-  );
+  setError("");
+  setSuccessMessage("Report saved successfully.");
+};
+
+  const openSavedReport = (report) => {
+  setPrompt(report.prompt);
+  setSql(report.sql);
+  setSqlExplanation(report.explanation || "");
+
+  setError("");
+  setSuccessMessage("Report loaded successfully.");
+
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth",
+  });
 };
 
   // 19. Clear current query
@@ -1180,6 +1194,14 @@ Show employees with salary above 50000`}
                 </p>
 
                 <pre>{report.sql}</pre>
+                <button
+                  className="secondary-button"
+                  onClick={() =>
+                    openSavedReport(report)
+                  }
+                >
+                  Open Report
+                </button>
               </div>
             ))}
           </details>
