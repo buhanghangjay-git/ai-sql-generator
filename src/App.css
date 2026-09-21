@@ -956,3 +956,116 @@ tbody tr:last-child td {
   margin-top: 0;
   margin-bottom: 10px;
 }
+
+.dataset-profile {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  background: #0f172a;
+}
+
+.dataset-profile-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.dataset-label {
+  margin-bottom: 5px;
+  color: #60a5fa;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dataset-profile h2 {
+  margin: 0 0 7px;
+}
+
+.dataset-description {
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+.confidence-badge {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.15);
+  color: #93c5fd;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.dataset-profile-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.dataset-profile-grid > div {
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  border: 1px solid #334155;
+  border-radius: 9px;
+  background: #1e293b;
+}
+
+.profile-value {
+  color: #f8fafc;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.profile-label {
+  margin-top: 3px;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.detected-fields {
+  margin-top: 12px;
+  overflow-wrap: anywhere;
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+
+/* Dataset profile light theme */
+
+.theme-light .dataset-profile {
+  background: #f8fafc;
+  border-color: #d1d5db;
+}
+
+.theme-light .dataset-profile-grid > div {
+  background: #ffffff;
+  border-color: #d1d5db;
+}
+
+.theme-light .dataset-description,
+.theme-light .profile-label,
+.theme-light .detected-fields {
+  color: #4b5563;
+}
+
+.theme-light .profile-value,
+.theme-light .dataset-profile h2 {
+  color: #111827;
+}
+
+.theme-light .confidence-badge {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+@media (max-width: 600px) {
+  .dataset-profile-header {
+    flex-direction: column;
+  }
+}

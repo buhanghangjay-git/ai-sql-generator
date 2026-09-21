@@ -11,6 +11,8 @@ import ChartsPanel from "./components/ChartsPanel";
 import SummaryPanel from "./components/SummaryPanel";
 import Footer from "./components/Footer";
 import InsightsPanel from "./components/InsightsPanel";
+import DatasetProfile from "./components/DatasetProfile";
+import { analyzeDataset } from "./utils/datasetAnalyzer";
 
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -37,6 +39,8 @@ function App() {
   const [columns, setColumns] = useState([]);
   const [uploadedFileName, setUploadedFileName] =
     useState("");
+  const [datasetProfile, setDatasetProfile] = 
+    useState(null);
 
   // 4. User feedback
   const [loading, setLoading] = useState(false);
@@ -77,29 +81,42 @@ function App() {
   ];
 
   const suggestions =
-    dataSource === "database"
-      ? databaseSuggestions
-      : excelSuggestions;
+  dataSource === "database"
+    ? databaseSuggestions
+    : datasetProfile?.suggestions ||
+      excelSuggestions;
 
   // 6. Read an Excel sheet
   const readSheet = (book, sheetName) => {
     const sheet = book.Sheets[sheetName];
 
-    const rows = XLSX.utils.sheet_to_json(sheet, {
-      defval: "",
-    });
+  const rows = XLSX.utils.sheet_to_json(sheet, {
+    defval: "",
+  });
 
-    setSelectedSheet(sheetName);
-    setExcelRows(rows);
-    setResults([]);
-    setSql("");
+  setSelectedSheet(sheetName);
+  setExcelRows(rows);
+  setResults([]);
+  setSql("");
 
-    if (rows.length > 0) {
-      setColumns(Object.keys(rows[0]));
-    } else {
-      setColumns([]);
-    }
-  };
+  if (rows.length > 0) {
+    const detectedColumns =
+      Object.keys(rows[0]);
+
+    setColumns(detectedColumns);
+
+    const analysis = analyzeDataset(
+      detectedColumns,
+      rows
+    );
+
+    setDatasetProfile(analysis);
+  } else {
+    setColumns([]);
+    setDatasetProfile(null);
+  }
+};
+
 
   // 7. Clear uploaded spreadsheet
   const clearUploadedFile = () => {
@@ -108,6 +125,7 @@ function App() {
     setSelectedSheet("");
     setExcelRows([]);
     setColumns([]);
+    setDatasetProfile(null);
     setUploadedFileName("");
     setResults([]);
     setSql("");
@@ -1019,6 +1037,33 @@ const deleteHistoryItem = (index) => {
           excelRows.length > 0 && (
             <section>
               <h2>Spreadsheet Preview</h2>
+
+                            {dataSource === "excel" &&
+                datasetProfile && (
+                  <DatasetProfile
+                    datasetProfile={datasetProfile}
+                    rowCount={excelRows.length}
+                    columnCount={columns.length}
+                  />
+                )}
+
+              {dataSource === "excel" &&
+                excelRows.length > 0 && (
+                  <section>
+                    <h2>Spreadsheet Preview</h2>
+
+                    <ResultsTable
+                      rows={excelRows.slice(0, 5)}
+                    />
+
+                    {excelRows.length > 5 && (
+                      <p className="preview-note">
+                        Showing the first 5 of{" "}
+                        {excelRows.length} rows.
+                      </p>
+                    )}
+                  </section>
+                )}
 
               <ResultsTable rows={excelRows.slice(0, 5)} />
               <ResultsTable rows={results} />
