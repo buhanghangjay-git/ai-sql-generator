@@ -233,10 +233,9 @@ function App() {
   };
 
   // 12. Query uploaded spreadsheet data
-
   // Query uploaded Excel or CSV data dynamically
 const queryExcel = () => {
-  if (excelRows.length === 0) {
+  if (!excelRows || excelRows.length === 0) {
     throw new Error(
       "Please upload an Excel or CSV file first."
     );
@@ -250,8 +249,8 @@ const queryExcel = () => {
      HELPERS
   ========================================= */
 
-  const normalizeValue = (value) => {
-    return String(value)
+  const normalizeText = (value) => {
+    return String(value ?? "")
       .toLowerCase()
       .trim();
   };
@@ -273,15 +272,15 @@ const queryExcel = () => {
       return null;
     }
 
-    const cleaned = String(value)
+    const cleanedValue = String(value)
       .replaceAll(",", "")
       .replace(/[^\d.-]/g, "");
 
-    if (cleaned === "") {
+    if (cleanedValue === "") {
       return null;
     }
 
-    const number = Number(cleaned);
+    const number = Number(cleanedValue);
 
     return Number.isFinite(number)
       ? number
@@ -302,8 +301,14 @@ const queryExcel = () => {
     )}]`;
   };
 
+  const formatNumber = (value) => {
+    return Number(
+      Number(value).toFixed(2)
+    );
+  };
+
   /* =========================================
-     ANALYZE THE AVAILABLE COLUMNS
+     BUILD COLUMN PROFILES
   ========================================= */
 
   const availableColumns =
@@ -344,8 +349,10 @@ const queryExcel = () => {
 
       return {
         column,
+
         normalizedColumn:
           normalizeColumnName(column),
+
         values,
         numericValues,
         uniqueValues,
@@ -367,25 +374,39 @@ const queryExcel = () => {
     );
 
   /* =========================================
-     FIND THE COLUMN MENTIONED BY THE USER
+     IGNORE IDENTIFIER COLUMNS FOR ANALYTICS
   ========================================= */
 
-  const directlyMentionedColumn =
-    columnProfiles.find((profile) => {
-      const readableColumn =
-        String(profile.column)
-          .toLowerCase()
-          .trim();
+  const ignoredNumericNames = [
+    "id",
+    "employeeid",
+    "productid",
+    "customerid",
+    "orderid",
+    "transactionid",
+    "recordid",
+    "code",
+    "zipcode",
+    "postalcode",
+    "phone",
+    "year",
+  ];
 
-      return (
-        requestText.includes(
-          readableColumn
-        ) ||
-        requestText.includes(
-          profile.normalizedColumn
-        )
+  const businessNumericColumns =
+    numericColumns.filter((profile) => {
+      return !ignoredNumericNames.some(
+        (ignoredName) =>
+          profile.normalizedColumn ===
+            ignoredName ||
+          profile.normalizedColumn.endsWith(
+            ignoredName
+          )
       );
     });
+
+  /* =========================================
+     PREFERRED COLUMN TYPES
+  ========================================= */
 
   const preferredNumericKeywords = [
     "salary",
@@ -421,14 +442,17 @@ const queryExcel = () => {
   ];
 
   const preferredNumericColumn =
-    numericColumns.find((profile) => {
-      return preferredNumericKeywords.some(
-        (keyword) =>
-          profile.normalizedColumn.includes(
-            keyword
-          )
-      );
-    }) ||
+    businessNumericColumns.find(
+      (profile) => {
+        return preferredNumericKeywords.some(
+          (keyword) =>
+            profile.normalizedColumn.includes(
+              keyword
+            )
+        );
+      }
+    ) ||
+    businessNumericColumns[0] ||
     numericColumns[0] ||
     null;
 
@@ -444,116 +468,127 @@ const queryExcel = () => {
     textColumns.find((profile) => {
       return (
         profile.uniqueValues.length > 1 &&
-        profile.uniqueValues.length <= 30
+        profile.uniqueValues.length <=
+          Math.max(
+            30,
+            Math.ceil(
+              excelRows.length * 0.5
+            )
+          )
       );
     }) ||
     null;
 
   /* =========================================
-     INITIAL QUERY
+     FIND A COLUMN MENTIONED IN THE PROMPT
   ========================================= */
 
-  let filteredRows = [...excelRows];
+  const findMentionedColumn = (
+    profiles
+  ) => {
+    return profiles.find((profile) => {
+      const readableColumn =
+        normalizeText(profile.column);
 
-  let generatedSQL =
-    `SELECT * FROM ${quoteColumn(
-      selectedSheet
-    )};`;
+      return (
+        requestText.includes(
+          readableColumn
+        ) ||
+        requestText.includes(
+          profile.normalizedColumn
+        )
+      );
+    });
+  };
 
-  let operationDescription =
-    "all records";
-
-  let queryRecognized = false;
-
-  /* =========================================
-     SHOW ALL RECORDS
-  ========================================= */
-
-  const requestsAllRecords =
-    requestText.includes("show all") ||
-    requestText.includes("all records") ||
-    requestText.includes("all rows") ||
-    requestText.includes("list all") ||
-    requestText === "all";
-
-  if (requestsAllRecords) {
-    filteredRows = [...excelRows];
-
-    generatedSQL =
-      `SELECT * FROM ${quoteColumn(
-        selectedSheet
-      )};`;
-
-    operationDescription =
-      "all records";
-
-    queryRecognized = true;
-  }
-
-  /* =========================================
-     TEXT / CATEGORY FILTERING
-  ========================================= */
-
-  let matchedTextColumn = null;
-  let matchedTextValue = null;
-
-  for (const profile of textColumns) {
-    const matchedValue =
-      profile.uniqueValues.find((value) => {
-        const normalized =
-          normalizeValue(value);
-
-        return (
-          normalized.length > 0 &&
-          requestText.includes(normalized)
-        );
-      });
-
-    if (matchedValue !== undefined) {
-      matchedTextColumn = profile;
-      matchedTextValue = matchedValue;
-      break;
-    }
-  }
-
-  if (
-    matchedTextColumn &&
-    matchedTextValue !== null
-  ) {
-    filteredRows = filteredRows.filter(
-      (row) => {
-        return (
-          normalizeValue(
-            row[
-              matchedTextColumn.column
-            ]
-          ) ===
-          normalizeValue(
-            matchedTextValue
-          )
-        );
-      }
+  const mentionedNumericColumn =
+    findMentionedColumn(
+      businessNumericColumns
+    ) ||
+    findMentionedColumn(
+      numericColumns
     );
 
-    generatedSQL =
-      `SELECT * FROM ${quoteColumn(
-        selectedSheet
-      )} ` +
-      `WHERE ${quoteColumn(
-        matchedTextColumn.column
-      )} = ` +
-      `'${escapeSQLValue(
-        matchedTextValue
-      )}';`;
+  const mentionedTextColumn =
+    findMentionedColumn(textColumns);
 
-    operationDescription =
-      `${matchedTextColumn.column} equals ${matchedTextValue}`;
+  const selectedNumericColumn =
+    mentionedNumericColumn ||
+    preferredNumericColumn;
 
-    queryRecognized = true;
-  }
+  const selectedCategoryColumn =
+    mentionedTextColumn ||
+    preferredCategoryColumn;
 
   /* =========================================
-     NUMBER DETECTION
+     QUERY PLAN
+  ========================================= */
+
+  const queryPlan = {
+    textConditions: [],
+    numericConditions: [],
+    sort: null,
+    limit: null,
+    aggregate: null,
+    groupBy: null,
+  };
+
+  /* =========================================
+     TEXT CONDITIONS
+  ========================================= */
+
+  textColumns.forEach((profile) => {
+    const matchingValue =
+      profile.uniqueValues
+        .filter((value) => {
+          return (
+            String(value).trim().length >
+            0
+          );
+        })
+        .sort(
+          (first, second) =>
+            String(second).length -
+            String(first).length
+        )
+        .find((value) => {
+          const normalizedValue =
+            normalizeText(value);
+
+          return (
+            normalizedValue.length >
+              0 &&
+            requestText.includes(
+              normalizedValue
+            )
+          );
+        });
+
+    if (matchingValue !== undefined) {
+      const alreadyAdded =
+        queryPlan.textConditions.some(
+          (condition) =>
+            condition.column ===
+              profile.column &&
+            normalizeText(
+              condition.value
+            ) ===
+              normalizeText(
+                matchingValue
+              )
+        );
+
+      if (!alreadyAdded) {
+        queryPlan.textConditions.push({
+          column: profile.column,
+          value: matchingValue,
+        });
+      }
+    }
+  });
+
+  /* =========================================
+     NUMERIC CONDITION
   ========================================= */
 
   const numberMatch = requestText.match(
@@ -569,650 +604,872 @@ const queryExcel = () => {
       )
     : null;
 
-  const requestedNumericColumn =
-    directlyMentionedColumn?.isNumeric
-      ? directlyMentionedColumn
-      : preferredNumericColumn;
-
-  /* =========================================
-     NUMERIC GREATER-THAN FILTER
-  ========================================= */
-
-  const requestsGreaterThan =
+  const greaterThanRequested =
     requestText.includes("greater than") ||
     requestText.includes("more than") ||
     requestText.includes("higher than") ||
     requestText.includes("above") ||
     requestText.includes("over");
 
-  if (
-    requestsGreaterThan &&
-    requestedNumber !== null &&
-    requestedNumericColumn
-  ) {
-    filteredRows = excelRows.filter(
-      (row) => {
-        const value = cleanNumericValue(
-          row[
-            requestedNumericColumn.column
-          ]
-        );
-
-        return (
-          value !== null &&
-          value > requestedNumber
-        );
-      }
+  const greaterThanOrEqualRequested =
+    requestText.includes(
+      "at least"
+    ) ||
+    requestText.includes(
+      "greater than or equal"
+    ) ||
+    requestText.includes(
+      "more than or equal"
     );
 
-    generatedSQL =
-      `SELECT * FROM ${quoteColumn(
-        selectedSheet
-      )} ` +
-      `WHERE ${quoteColumn(
-        requestedNumericColumn.column
-      )} > ${requestedNumber};`;
-
-    operationDescription =
-      `${requestedNumericColumn.column} above ${requestedNumber}`;
-
-    queryRecognized = true;
-  }
-
-  /* =========================================
-     NUMERIC LESS-THAN FILTER
-  ========================================= */
-
-  const requestsLessThan =
+  const lessThanRequested =
     requestText.includes("less than") ||
     requestText.includes("lower than") ||
     requestText.includes("below") ||
     requestText.includes("under");
 
-  if (
-    requestsLessThan &&
-    requestedNumber !== null &&
-    requestedNumericColumn
-  ) {
-    filteredRows = excelRows.filter(
-      (row) => {
-        const value = cleanNumericValue(
-          row[
-            requestedNumericColumn.column
-          ]
-        );
-
-        return (
-          value !== null &&
-          value < requestedNumber
-        );
-      }
+  const lessThanOrEqualRequested =
+    requestText.includes(
+      "at most"
+    ) ||
+    requestText.includes(
+      "less than or equal"
+    ) ||
+    requestText.includes(
+      "lower than or equal"
     );
 
-    generatedSQL =
-      `SELECT * FROM ${quoteColumn(
-        selectedSheet
-      )} ` +
-      `WHERE ${quoteColumn(
-        requestedNumericColumn.column
-      )} < ${requestedNumber};`;
-
-    operationDescription =
-      `${requestedNumericColumn.column} below ${requestedNumber}`;
-
-    queryRecognized = true;
-  }
-
-  /* =========================================
-     NUMERIC EQUAL FILTER
-  ========================================= */
-
-  const requestsEqual =
+  const equalRequested =
     requestText.includes("equal to") ||
     requestText.includes("equals") ||
     requestText.includes("exactly");
 
   if (
-    requestsEqual &&
     requestedNumber !== null &&
-    requestedNumericColumn
+    selectedNumericColumn
   ) {
-    filteredRows = excelRows.filter(
-      (row) => {
-        const value = cleanNumericValue(
-          row[
-            requestedNumericColumn.column
-          ]
-        );
+    let operator = null;
 
-        return (
-          value !== null &&
-          value === requestedNumber
-        );
-      }
-    );
+    if (
+      greaterThanOrEqualRequested
+    ) {
+      operator = ">=";
+    } else if (
+      lessThanOrEqualRequested
+    ) {
+      operator = "<=";
+    } else if (
+      greaterThanRequested
+    ) {
+      operator = ">";
+    } else if (
+      lessThanRequested
+    ) {
+      operator = "<";
+    } else if (equalRequested) {
+      operator = "=";
+    }
 
-    generatedSQL =
-      `SELECT * FROM ${quoteColumn(
-        selectedSheet
-      )} ` +
-      `WHERE ${quoteColumn(
-        requestedNumericColumn.column
-      )} = ${requestedNumber};`;
+    if (operator) {
+      queryPlan.numericConditions.push({
+        column:
+          selectedNumericColumn.column,
 
-    operationDescription =
-      `${requestedNumericColumn.column} equals ${requestedNumber}`;
-
-    queryRecognized = true;
+        operator,
+        value: requestedNumber,
+      });
+    }
   }
 
   /* =========================================
-     TOP / HIGHEST RECORDS
+     GROUPING
   ========================================= */
 
-  const topCountMatch =
-    requestText.match(
-      /(?:top|highest|largest|most expensive)\s+(\d+)/
+  const groupingRequested =
+    requestText.includes("group by") ||
+    requestText.includes(
+      "group records"
+    ) ||
+    requestText.includes(
+      "breakdown by"
+    ) ||
+    requestText.includes(
+      "distribution by"
     );
 
-  const requestedTopCount =
-    topCountMatch
-      ? Number(topCountMatch[1])
-      : requestText.includes("highest") ||
-          requestText.includes(
-            "largest"
-          ) ||
-          requestText.includes(
-            "most expensive"
-          )
-        ? 1
-        : null;
-
   if (
-    requestedTopCount &&
-    requestedNumericColumn
+    groupingRequested &&
+    selectedCategoryColumn
   ) {
-    filteredRows = [...excelRows]
-      .filter((row) => {
-        return (
-          cleanNumericValue(
-            row[
-              requestedNumericColumn.column
-            ]
-          ) !== null
-        );
-      })
-      .sort((firstRow, secondRow) => {
-        return (
-          cleanNumericValue(
-            secondRow[
-              requestedNumericColumn.column
-            ]
-          ) -
-          cleanNumericValue(
-            firstRow[
-              requestedNumericColumn.column
-            ]
-          )
-        );
-      })
-      .slice(0, requestedTopCount);
-
-    generatedSQL =
-      `SELECT TOP ${requestedTopCount} * ` +
-      `FROM ${quoteColumn(
-        selectedSheet
-      )} ` +
-      `ORDER BY ${quoteColumn(
-        requestedNumericColumn.column
-      )} DESC;`;
-
-    operationDescription =
-      `top ${requestedTopCount} records by ${requestedNumericColumn.column}`;
-
-    queryRecognized = true;
+    queryPlan.groupBy =
+      selectedCategoryColumn.column;
   }
 
   /* =========================================
-     BOTTOM / LOWEST RECORDS
+     AGGREGATION
   ========================================= */
 
-  const bottomCountMatch =
-    requestText.match(
-      /(?:bottom|lowest|smallest|cheapest)\s+(\d+)/
-    );
-
-  const requestedBottomCount =
-    bottomCountMatch
-      ? Number(bottomCountMatch[1])
-      : requestText.includes("lowest") ||
-          requestText.includes(
-            "smallest"
-          ) ||
-          requestText.includes(
-            "cheapest"
-          )
-        ? 1
-        : null;
-
   if (
-    requestedBottomCount &&
-    requestedNumericColumn
+    requestText.includes("average") ||
+    requestText.includes("mean")
   ) {
-    filteredRows = [...excelRows]
-      .filter((row) => {
-        return (
-          cleanNumericValue(
-            row[
-              requestedNumericColumn.column
-            ]
-          ) !== null
-        );
-      })
-      .sort((firstRow, secondRow) => {
-        return (
-          cleanNumericValue(
-            firstRow[
-              requestedNumericColumn.column
-            ]
-          ) -
-          cleanNumericValue(
-            secondRow[
-              requestedNumericColumn.column
-            ]
-          )
-        );
-      })
-      .slice(
-        0,
-        requestedBottomCount
-      );
-
-    generatedSQL =
-      `SELECT TOP ${requestedBottomCount} * ` +
-      `FROM ${quoteColumn(
-        selectedSheet
-      )} ` +
-      `ORDER BY ${quoteColumn(
-        requestedNumericColumn.column
-      )} ASC;`;
-
-    operationDescription =
-      `bottom ${requestedBottomCount} records by ${requestedNumericColumn.column}`;
-
-    queryRecognized = true;
+    queryPlan.aggregate = "AVG";
+  } else if (
+    requestText.includes("total") ||
+    requestText.includes("sum")
+  ) {
+    queryPlan.aggregate = "SUM";
+  } else if (
+    requestText.includes("count") ||
+    requestText.includes("how many")
+  ) {
+    queryPlan.aggregate = "COUNT";
+  } else if (
+    requestText.includes("minimum") ||
+    requestText.includes("min ")
+  ) {
+    queryPlan.aggregate = "MIN";
+  } else if (
+    requestText.includes("maximum") ||
+    requestText.includes("max ")
+  ) {
+    queryPlan.aggregate = "MAX";
   }
 
   /* =========================================
-     LOW STOCK
+     TOP / BOTTOM LIMIT
+  ========================================= */
+
+  const topMatch = requestText.match(
+    /(?:top|highest|largest|most expensive)\s+(\d+)/
+  );
+
+  const bottomMatch = requestText.match(
+    /(?:bottom|lowest|smallest|cheapest)\s+(\d+)/
+  );
+
+  const requestsHighest =
+    requestText.includes("highest") ||
+    requestText.includes("largest") ||
+    requestText.includes(
+      "most expensive"
+    );
+
+  const requestsLowest =
+    requestText.includes("lowest") ||
+    requestText.includes("smallest") ||
+    requestText.includes(
+      "cheapest"
+    );
+
+  if (topMatch) {
+    queryPlan.limit = Number(
+      topMatch[1]
+    );
+
+    queryPlan.sort = {
+      column:
+        selectedNumericColumn?.column,
+
+      direction: "DESC",
+    };
+  } else if (bottomMatch) {
+    queryPlan.limit = Number(
+      bottomMatch[1]
+    );
+
+    queryPlan.sort = {
+      column:
+        selectedNumericColumn?.column,
+
+      direction: "ASC",
+    };
+  } else if (
+    requestsHighest &&
+    selectedNumericColumn
+  ) {
+    queryPlan.limit = 1;
+
+    queryPlan.sort = {
+      column:
+        selectedNumericColumn.column,
+
+      direction: "DESC",
+    };
+  } else if (
+    requestsLowest &&
+    selectedNumericColumn
+  ) {
+    queryPlan.limit = 1;
+
+    queryPlan.sort = {
+      column:
+        selectedNumericColumn.column,
+
+      direction: "ASC",
+    };
+  }
+
+  /* =========================================
+     EXPLICIT SORTING
+  ========================================= */
+
+  const requestsDescending =
+    requestText.includes(
+      "highest to lowest"
+    ) ||
+    requestText.includes(
+      "descending"
+    ) ||
+    requestText.includes(
+      "sort descending"
+    ) ||
+    requestText.includes(
+      "largest first"
+    );
+
+  const requestsAscending =
+    requestText.includes(
+      "lowest to highest"
+    ) ||
+    requestText.includes(
+      "ascending"
+    ) ||
+    requestText.includes(
+      "sort ascending"
+    ) ||
+    requestText.includes(
+      "smallest first"
+    );
+
+  if (
+    requestsDescending &&
+    selectedNumericColumn
+  ) {
+    queryPlan.sort = {
+      column:
+        selectedNumericColumn.column,
+
+      direction: "DESC",
+    };
+  }
+
+  if (
+    requestsAscending &&
+    selectedNumericColumn
+  ) {
+    queryPlan.sort = {
+      column:
+        selectedNumericColumn.column,
+
+      direction: "ASC",
+    };
+  }
+
+  /* =========================================
+     LOW-STOCK QUERY
   ========================================= */
 
   const stockColumn =
-    numericColumns.find((profile) => {
-      return (
-        profile.normalizedColumn.includes(
-          "stock"
-        ) ||
-        profile.normalizedColumn.includes(
-          "inventory"
-        ) ||
-        profile.normalizedColumn.includes(
-          "quantity"
-        )
-      );
-    });
-
-  if (
-    requestText.includes("low stock") &&
-    stockColumn
-  ) {
-    const stockValues =
-      stockColumn.numericValues;
-
-    const averageStock =
-      stockValues.length > 0
-        ? stockValues.reduce(
-            (sum, value) =>
-              sum + value,
-            0
-          ) / stockValues.length
-        : 0;
-
-    filteredRows = excelRows.filter(
-      (row) => {
-        const value = cleanNumericValue(
-          row[stockColumn.column]
-        );
-
+    businessNumericColumns.find(
+      (profile) => {
         return (
-          value !== null &&
-          value < averageStock
+          profile.normalizedColumn.includes(
+            "stock"
+          ) ||
+          profile.normalizedColumn.includes(
+            "inventory"
+          ) ||
+          profile.normalizedColumn.includes(
+            "quantity"
+          )
         );
       }
     );
 
-    generatedSQL =
-      `SELECT * FROM ${quoteColumn(
-        selectedSheet
-      )} ` +
-      `WHERE ${quoteColumn(
-        stockColumn.column
-      )} < ${Number(
-        averageStock.toFixed(2)
-      )};`;
+  if (
+    requestText.includes("low stock") &&
+    stockColumn &&
+    stockColumn.numericValues.length > 0
+  ) {
+    const averageStock =
+      stockColumn.numericValues.reduce(
+        (sum, value) =>
+          sum + value,
+        0
+      ) /
+      stockColumn.numericValues.length;
 
-    operationDescription =
-      `${stockColumn.column} below its dataset average`;
-
-    queryRecognized = true;
+    queryPlan.numericConditions.push({
+      column: stockColumn.column,
+      operator: "<",
+      value: formatNumber(
+        averageStock
+      ),
+    });
   }
 
   /* =========================================
-     CATEGORY GROUPING
+     APPLY MULTIPLE CONDITIONS
   ========================================= */
 
-  const requestsGrouping =
-    requestText.includes("group by") ||
-    requestText.includes("group records") ||
-    requestText.includes("by category") ||
-    requestText.includes(
-      "by department"
-    ) ||
-    requestText.includes("by region") ||
-    requestText.includes("by status");
+  let filteredRows = [...excelRows];
+
+  queryPlan.textConditions.forEach(
+    (condition) => {
+      filteredRows =
+        filteredRows.filter((row) => {
+          return (
+            normalizeText(
+              row[condition.column]
+            ) ===
+            normalizeText(
+              condition.value
+            )
+          );
+        });
+    }
+  );
+
+  queryPlan.numericConditions.forEach(
+    (condition) => {
+      filteredRows =
+        filteredRows.filter((row) => {
+          const value =
+            cleanNumericValue(
+              row[condition.column]
+            );
+
+          if (value === null) {
+            return false;
+          }
+
+          switch (condition.operator) {
+            case ">":
+              return (
+                value >
+                condition.value
+              );
+
+            case ">=":
+              return (
+                value >=
+                condition.value
+              );
+
+            case "<":
+              return (
+                value <
+                condition.value
+              );
+
+            case "<=":
+              return (
+                value <=
+                condition.value
+              );
+
+            case "=":
+              return (
+                value ===
+                condition.value
+              );
+
+            default:
+              return true;
+          }
+        });
+    }
+  );
+
+  /* =========================================
+     APPLY SORTING
+  ========================================= */
 
   if (
-    requestsGrouping &&
-    preferredCategoryColumn
+    queryPlan.sort?.column
   ) {
-    const groupedRows = {};
+    filteredRows.sort(
+      (firstRow, secondRow) => {
+        const firstValue =
+          cleanNumericValue(
+            firstRow[
+              queryPlan.sort.column
+            ]
+          );
 
-    excelRows.forEach((row) => {
+        const secondValue =
+          cleanNumericValue(
+            secondRow[
+              queryPlan.sort.column
+            ]
+          );
+
+        if (
+          firstValue === null &&
+          secondValue === null
+        ) {
+          return 0;
+        }
+
+        if (firstValue === null) {
+          return 1;
+        }
+
+        if (secondValue === null) {
+          return -1;
+        }
+
+        if (
+          queryPlan.sort.direction ===
+          "DESC"
+        ) {
+          return (
+            secondValue - firstValue
+          );
+        }
+
+        return (
+          firstValue - secondValue
+        );
+      }
+    );
+  }
+
+  /* =========================================
+     APPLY LIMIT
+  ========================================= */
+
+  if (
+    queryPlan.limit &&
+    queryPlan.limit > 0
+  ) {
+    filteredRows =
+      filteredRows.slice(
+        0,
+        queryPlan.limit
+      );
+  }
+
+  /* =========================================
+     GENERATE WHERE CONDITIONS
+  ========================================= */
+
+  const sqlConditions = [];
+
+  queryPlan.textConditions.forEach(
+    (condition) => {
+      sqlConditions.push(
+        `${quoteColumn(
+          condition.column
+        )} = ` +
+          `'${escapeSQLValue(
+            condition.value
+          )}'`
+      );
+    }
+  );
+
+  queryPlan.numericConditions.forEach(
+    (condition) => {
+      sqlConditions.push(
+        `${quoteColumn(
+          condition.column
+        )} ${condition.operator} ` +
+          `${condition.value}`
+      );
+    }
+  );
+
+  const whereClause =
+    sqlConditions.length > 0
+      ? ` WHERE ${sqlConditions.join(
+          " AND "
+        )}`
+      : "";
+
+  /* =========================================
+     GROUPED QUERY
+  ========================================= */
+
+  let generatedSQL = "";
+  let finalRows = filteredRows;
+  let operationDescription = "";
+
+  if (queryPlan.groupBy) {
+    const groupData = {};
+
+    filteredRows.forEach((row) => {
       const rawValue =
-        row[
-          preferredCategoryColumn.column
-        ];
+        row[queryPlan.groupBy];
 
-      const category =
+      const groupName =
         rawValue === null ||
         rawValue === undefined ||
         rawValue === ""
           ? "Unknown"
           : String(rawValue).trim();
 
-      groupedRows[category] =
-        (groupedRows[category] || 0) +
-        1;
+      if (!groupData[groupName]) {
+        groupData[groupName] = {
+          rows: [],
+        };
+      }
+
+      groupData[
+        groupName
+      ].rows.push(row);
     });
 
-        filteredRows = Object.entries(
-      groupedRows
-    )
-      .map(([group, count]) => {
-        return {
-          [preferredCategoryColumn.column]:
-            group,
-
-          RecordCount: count,
-        };
-      })
-      .sort(
-        (first, second) =>
-          second.RecordCount -
-          first.RecordCount
-      );
-
-    generatedSQL =
-      `SELECT ${quoteColumn(
-        preferredCategoryColumn.column
-      )}, ` +
-      `COUNT(*) AS [RecordCount] ` +
-      `FROM ${quoteColumn(
-        selectedSheet
-      )} ` +
-      `GROUP BY ${quoteColumn(
-        preferredCategoryColumn.column
-      )} ` +
-      `ORDER BY [RecordCount] DESC;`;
-
-    operationDescription =
-      `records grouped by ${preferredCategoryColumn.column}`;
-
-    queryRecognized = true;
-  }
-
-  /* =========================================
-     AVERAGE CALCULATION
-  ========================================= */
-
-  const requestsAverage =
-    requestText.includes("average") ||
-    requestText.includes("mean");
-
-  if (
-    requestsAverage &&
-    requestedNumericColumn
-  ) {
-    const values =
-      requestedNumericColumn.numericValues;
-
-    const average =
-      values.length > 0
-        ? values.reduce(
-            (sum, value) =>
-              sum + value,
-            0
-          ) / values.length
-        : 0;
-
-    filteredRows = [
-      {
-        Metric:
-          `Average ${requestedNumericColumn.column}`,
-
-        Value: Number(
-          average.toFixed(2)
-        ),
-      },
-    ];
-
-    generatedSQL =
-      `SELECT AVG(${quoteColumn(
-        requestedNumericColumn.column
-      )}) AS ` +
-      `[Average${String(
-        requestedNumericColumn.column
-      ).replaceAll(" ", "")}] ` +
-      `FROM ${quoteColumn(
-        selectedSheet
-      )};`;
-
-    operationDescription =
-      `average ${requestedNumericColumn.column}`;
-
-    queryRecognized = true;
-  }
-
-  /* =========================================
-     TOTAL / SUM CALCULATION
-  ========================================= */
-
-  const requestsTotal =
-    requestText.includes("total") ||
-    requestText.includes("sum");
-
-  if (
-    requestsTotal &&
-    requestedNumericColumn  ) {
-    const values =
-      requestedNumericColumn.numericValues;
-
-    const total = values.reduce(
-      (sum, value) =>
-        sum + value,
-      0
-    );
-
-    filteredRows = [
-      {
-        Metric:
-          `Total ${requestedNumericColumn.column}`,
-
-        Value: Number(
-          total.toFixed(2)
-        ),
-      },
-    ];
-
-    generatedSQL =
-      `SELECT SUM(${quoteColumn(
-        requestedNumericColumn.column
-      )}) AS ` +
-      `[Total${String(
-        requestedNumericColumn.column
-      ).replaceAll(" ", "")}] ` +
-      `FROM ${quoteColumn(
-        selectedSheet
-      )};`;
-
-    operationDescription =
-      `total ${requestedNumericColumn.column}`;
-
-    queryRecognized = true;
-  }
-
-  /* =========================================
-     COUNT RECORDS
-  ========================================= */
-
-  const requestsCount =
-    requestText.includes("count") ||
-    requestText.includes("how many");
-
-  if (
-    requestsCount &&
-    !requestsGrouping
-  ) {
-    filteredRows = [
-      {
-        Metric: "Record Count",
-        Value: excelRows.length,
-      },
-    ];
-
-    generatedSQL =
-      `SELECT COUNT(*) AS ` +
-      `[RecordCount] FROM ` +
-      `${quoteColumn(
-        selectedSheet
-      )};`;
-
-    operationDescription =
-      "record count";
-
-    queryRecognized = true;
-  }
-
-  /* =========================================
-     GENERAL TEXT SEARCH
-  ========================================= */
-
-  if (!queryRecognized) {
-    const searchWords =
-      requestText
-        .split(/\s+/)
-        .filter(
-          (word) =>
-            word.length >= 3 &&
-            ![
-              "show",
-              "find",
-              "list",
-              "records",
-              "record",
-              "data",
-              "with",
-              "from",
-              "that",
-              "have",
-              "the",
-              "all",
-            ].includes(word)
-        );
-
-    const searchedRows =
-      excelRows.filter((row) => {
-        return availableColumns.some(
-          (column) => {
-            const value =
-              normalizeValue(
-                row[column]
-              );
-
-            return searchWords.some(
-              (word) =>
-                value.includes(word)
-            );
-          }
-        );
-      });
-
     if (
-      searchWords.length > 0 &&
-      searchedRows.length > 0
+      queryPlan.aggregate &&
+      queryPlan.aggregate !==
+        "COUNT" &&
+      selectedNumericColumn
     ) {
-      filteredRows = searchedRows;
+      finalRows = Object.entries(
+        groupData
+      )
+        .map(([groupName, data]) => {
+          const values = data.rows
+            .map((row) =>
+              cleanNumericValue(
+                row[
+                  selectedNumericColumn
+                    .column
+                ]
+              )
+            )
+            .filter(
+              (value) =>
+                value !== null
+            );
+
+          let aggregateValue = 0;
+
+          if (
+            queryPlan.aggregate === "AVG"
+          ) {
+            aggregateValue =
+              values.length > 0
+                ? values.reduce(
+                    (sum, value) =>
+                      sum + value,
+                    0
+                  ) / values.length
+                : 0;
+          }
+
+          if (
+            queryPlan.aggregate === "SUM"
+          ) {
+            aggregateValue =
+              values.reduce(
+                (sum, value) =>
+                  sum + value,
+                0
+              );
+          }
+
+          if (
+            queryPlan.aggregate === "MIN"
+          ) {
+            aggregateValue =
+              values.length > 0
+                ? Math.min(...values)
+                : 0;
+          }
+
+          if (
+            queryPlan.aggregate === "MAX"
+          ) {
+            aggregateValue =
+              values.length > 0
+                ? Math.max(...values)
+                : 0;
+          }
+
+          return {
+            [queryPlan.groupBy]:
+              groupName,
+
+            [
+              `${queryPlan.aggregate}_${selectedNumericColumn.column}`
+            ]:
+              formatNumber(
+                aggregateValue
+              ),
+          };
+        });
 
       generatedSQL =
-        `-- General text search across ` +
-        `${availableColumns.length} columns\n` +
-        `SELECT * FROM ${quoteColumn(
+        `SELECT ${quoteColumn(
+          queryPlan.groupBy
+        )}, ` +
+        `${queryPlan.aggregate}(${quoteColumn(
+          selectedNumericColumn.column
+        )}) AS ` +
+        `${quoteColumn(
+          `${queryPlan.aggregate}_${selectedNumericColumn.column}`
+        )} ` +
+        `FROM ${quoteColumn(
           selectedSheet
+        )}` +
+        `${whereClause} ` +
+        `GROUP BY ${quoteColumn(
+          queryPlan.groupBy
         )};`;
 
       operationDescription =
-        "general text search";
+        `${queryPlan.aggregate} ${selectedNumericColumn.column} grouped by ${queryPlan.groupBy}`;
+    } else {
+      finalRows = Object.entries(
+        groupData
+      )
+        .map(
+          ([groupName, data]) => {
+            return {
+              [queryPlan.groupBy]:
+                groupName,
 
-      queryRecognized = true;
+              RecordCount:
+                data.rows.length,
+            };
+          }
+        )
+        .sort(
+          (first, second) =>
+            second.RecordCount -
+            first.RecordCount
+        );
+
+      generatedSQL =
+        `SELECT ${quoteColumn(
+          queryPlan.groupBy
+        )}, ` +
+        `COUNT(*) AS [RecordCount] ` +
+        `FROM ${quoteColumn(
+          selectedSheet
+        )}` +
+        `${whereClause} ` +
+        `GROUP BY ${quoteColumn(
+          queryPlan.groupBy
+        )} ` +
+        `ORDER BY [RecordCount] DESC;`;
+
+      operationDescription =
+        `records grouped by ${queryPlan.groupBy}`;
     }
   }
 
   /* =========================================
-     FALLBACK
+     SINGLE AGGREGATE QUERY
   ========================================= */
 
-  if (!queryRecognized) {
-    filteredRows = [...excelRows];
+  if (
+    !queryPlan.groupBy &&
+    queryPlan.aggregate
+  ) {
+    if (
+      queryPlan.aggregate === "COUNT"
+    ) {
+      finalRows = [
+        {
+          Metric: "Record Count",
+          Value: filteredRows.length,
+        },
+      ];
 
-    generatedSQL =
-      `SELECT * FROM ${quoteColumn(
-        selectedSheet
-      )};`;
+      generatedSQL =
+        `SELECT COUNT(*) AS ` +
+        `[RecordCount] FROM ` +
+        `${quoteColumn(
+          selectedSheet
+        )}` +
+        `${whereClause};`;
 
-    operationDescription =
-      "all records because no supported filter was detected";
+      operationDescription =
+        "record count";
+    } else if (
+      selectedNumericColumn
+    ) {
+      const numericValues =
+        filteredRows
+          .map((row) =>
+            cleanNumericValue(
+              row[
+                selectedNumericColumn
+                  .column
+              ]
+            )
+          )
+          .filter(
+            (value) =>
+              value !== null
+          );
+
+      let aggregateValue = 0;
+
+      if (
+        queryPlan.aggregate === "AVG"
+      ) {
+        aggregateValue =
+          numericValues.length > 0
+            ? numericValues.reduce(
+                (sum, value) =>
+                  sum + value,
+                0
+              ) /
+              numericValues.length
+            : 0;
+      }
+
+      if (
+        queryPlan.aggregate === "SUM"
+      ) {
+        aggregateValue =
+          numericValues.reduce(
+            (sum, value) =>
+              sum + value,
+            0
+          );
+      }
+
+      if (
+        queryPlan.aggregate === "MIN"
+      ) {
+        aggregateValue =
+          numericValues.length > 0
+            ? Math.min(
+                ...numericValues
+              )
+            : 0;
+      }
+
+      if (
+        queryPlan.aggregate === "MAX"
+      ) {
+        aggregateValue =
+          numericValues.length > 0
+            ? Math.max(
+                ...numericValues
+              )
+            : 0;
+      }
+
+            finalRows = [
+        {
+          Metric:
+            `${queryPlan.aggregate} ${selectedNumericColumn.column}`,
+
+          Value: formatNumber(
+            aggregateValue
+          ),
+        },
+      ];
+
+      generatedSQL =
+        `SELECT ${queryPlan.aggregate}(` +
+        `${quoteColumn(
+          selectedNumericColumn.column
+        )}) AS ` +
+        `${quoteColumn(
+          `${queryPlan.aggregate}_${selectedNumericColumn.column}`
+        )} ` +
+        `FROM ${quoteColumn(
+          selectedSheet
+        )}` +
+        `${whereClause};`;
+
+      operationDescription =
+        `${queryPlan.aggregate} ${selectedNumericColumn.column}`;
+    }
   }
 
   /* =========================================
-     UPDATE UI
+     STANDARD SELECT QUERY
+  ========================================= */
+
+  if (!generatedSQL) {
+    const topClause =
+      queryPlan.limit
+        ? `TOP ${queryPlan.limit} `
+        : "";
+
+    const orderClause =
+      queryPlan.sort?.column
+        ? ` ORDER BY ${quoteColumn(
+            queryPlan.sort.column
+          )} ${
+            queryPlan.sort.direction
+          }`
+        : "";
+
+    generatedSQL =
+      `SELECT ${topClause}* ` +
+      `FROM ${quoteColumn(
+        selectedSheet
+      )}` +
+      `${whereClause}` +
+      `${orderClause};`;
+
+    const appliedOperations = [];
+
+    if (
+      queryPlan.textConditions.length > 0
+    ) {
+      appliedOperations.push(
+        `${queryPlan.textConditions.length} text filter${
+          queryPlan.textConditions.length === 1
+            ? ""
+            : "s"
+        }`
+      );
+    }
+
+    if (
+      queryPlan.numericConditions.length > 0
+    ) {
+      appliedOperations.push(
+        `${queryPlan.numericConditions.length} numeric filter${
+          queryPlan.numericConditions.length === 1
+            ? ""
+            : "s"
+        }`
+      );
+    }
+
+    if (queryPlan.sort) {
+      appliedOperations.push(
+        `${queryPlan.sort.direction} sorting`
+      );
+    }
+
+    if (queryPlan.limit) {
+      appliedOperations.push(
+        `top ${queryPlan.limit}`
+      );
+    }
+
+    operationDescription =
+      appliedOperations.length > 0
+        ? appliedOperations.join(", ")
+        : "all records";
+  }
+
+  /* =========================================
+     UPDATE APPLICATION STATE
   ========================================= */
 
   setSql(generatedSQL);
-  setResults(filteredRows);
+  setResults(finalRows);
 
   const historyItem = {
-    source:
-      `Excel: ${uploadedFileName}`,
-
+    source: `Excel: ${uploadedFileName}`,
     prompt,
-
     sql: generatedSQL,
-
-    resultCount:
-      filteredRows.length,
-
-    operation:
-      operationDescription,
+    resultCount: finalRows.length,
+    operation: operationDescription,
   };
 
   const updatedHistory = [
@@ -1227,7 +1484,7 @@ const queryExcel = () => {
     JSON.stringify(updatedHistory)
   );
 
-  if (filteredRows.length === 0) {
+  if (finalRows.length === 0) {
     setSuccessMessage("");
 
     setError(
@@ -1237,14 +1494,15 @@ const queryExcel = () => {
     setError("");
 
     setSuccessMessage(
-      `${filteredRows.length} result${
-        filteredRows.length === 1
+      `${finalRows.length} result${
+        finalRows.length === 1
           ? ""
           : "s"
-      } found for ${operationDescription}.`
+      } found using ${operationDescription}.`
     );
   }
 };
+
 
   // 13. Query SQL Server through Express
   const queryDatabase = async () => {
