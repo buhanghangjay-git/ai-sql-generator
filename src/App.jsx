@@ -13,6 +13,7 @@ import Footer from "./components/Footer";
 import InsightsPanel from "./components/InsightsPanel";
 import DatasetProfile from "./components/DatasetProfile";
 import { analyzeDataset } from "./utils/datasetAnalyzer";
+import { downloadAnalysisPDF } from "./utils/exportAnalysisPDF";
 
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -869,6 +870,33 @@ const deleteHistoryItem = (index) => {
       : "dark"
     );
   };
+
+  // 23. Download complete analysis report
+  const downloadPDFReport = () => {
+    if (!results || results.length === 0) {
+      setError(
+        "Run a query first before downloading a report."
+      );
+
+      return;
+    }
+
+    setError("");
+
+    downloadAnalysisPDF({
+      results,
+      prompt,
+      sql,
+      dataSource,
+      datasetProfile,
+      uploadedFileName,
+      selectedSheet,
+    });
+
+    setSuccessMessage(
+      "Analysis report downloaded successfully."
+    );
+  };
   
 
   return (
@@ -1178,39 +1206,40 @@ Show employees with salary above 50000`}
               </span>
             </div>
 
-            <div className="export-buttons">
-              <button
-                className="export-button"
-                onClick={exportResultsToExcel}
-                disabled={results.length === 0}
-              >
-                Export Excel
-              </button>
+              <div className="export-buttons">
+                <button
+                  className="export-button"
+                  onClick={exportResultsToExcel}
+                  disabled={results.length === 0}
+                >
+                  Export Excel
+                </button>
 
-              <button
-                className="export-button csv-button"
-                onClick={exportResultsToCSV}
-                disabled={results.length === 0}
-              >
-                Export CSV
-              </button>
+                <button
+                  className="export-button csv-button"
+                  onClick={exportResultsToCSV}
+                  disabled={results.length === 0}
+                >
+                  Export CSV
+                </button>
 
-              <button
-                className="export-button"
-                onClick={exportPDF}
-                disabled={results.length === 0}
-              >
-                Download PDF
-              </button>
+                <button
+                  className="pdf-button"
+                  onClick={downloadPDFReport}
+                  disabled={results.length === 0}
+                >
+                  Download PDF
+                </button>
 
-              <button
-                className="export-button"
-                onClick={saveReport}
-              >
-                Save Report
-              </button>
+                <button
+                  className="export-button"
+                  onClick={saveReport}
+                  disabled={results.length === 0}
+                >
+                  Save Report
+                </button>
+              </div>
             </div>
-          </div>
 
           <div id="report-section">
 
