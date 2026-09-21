@@ -1943,3 +1943,73 @@ body:has(.theme-dark) {
     transform: none;
   }
 }
+
+/* =========================================
+   DYNAMIC CHART GRID
+========================================= */
+
+.charts-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(380px, 1fr)
+    );
+
+  gap: 22px;
+  margin-top: 16px;
+}
+
+.chart-card {
+  min-width: 0;
+  padding: 22px;
+
+  background: #f4f0ff;
+
+  border: none;
+  border-radius: 28px;
+
+  box-shadow: var(--clay-shadow);
+}
+
+.chart-card h3 {
+  margin: 0 0 16px;
+
+  color: #29263a;
+
+  font-size: 16px;
+  font-weight: 800;
+}
+
+
+/* Dark mode
+
+   Keep the chart canvas light because the
+   graph labels need strong readability.
+*/
+
+.theme-dark .chart-card {
+  background: #f4f0ff;
+}
+
+.theme-dark .chart-card h3 {
+  color: #29263a;
+}
+
+
+/* Responsive charts */
+
+@media (max-width: 900px) {
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .chart-card {
+    padding: 14px;
+
+    border-radius: 22px;
+  }
+}
